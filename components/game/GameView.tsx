@@ -67,7 +67,7 @@ export function GameView({ roomSlug }: GameViewProps) {
               {state.lobbyPlayers.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center gap-3 rounded-md border bg-muted px-3 py-2 text-sm"
+                  className="flex items-center gap-3 rounded-md border border-transparent bg-muted px-3 py-2 text-sm"
                 >
                   <span
                     className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"

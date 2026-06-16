@@ -93,13 +93,13 @@ export function LobbyView() {
     router.push(`/room/${encodeURIComponent(room)}`);
   };
 
-  const handleQuickJoin = (name: string) => {
-    if (!playerName.trim()) {
-      toast.error('Vul eerst je naam in');
-      return;
-    }
-    saveJoinSession({ playerName: playerName.trim(), roomName: name, categories: [] });
-    router.push(`/room/${encodeURIComponent(name)}`);
+  const handleQuickJoin = (roomName: string, joinPlayerName: string) => {
+    saveJoinSession({
+      playerName: joinPlayerName.trim(),
+      roomName,
+      categories: [],
+    });
+    router.push(`/room/${encodeURIComponent(roomName)}`);
   };
 
   return (
@@ -266,6 +266,7 @@ export function LobbyView() {
                     name={name}
                     room={rooms[name]}
                     maxPlayers={settings.maxPlayers}
+                    initialPlayerName={playerName}
                     onJoin={handleQuickJoin}
                   />
                 ))}

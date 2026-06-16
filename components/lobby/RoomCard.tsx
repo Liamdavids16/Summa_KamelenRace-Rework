@@ -1,25 +1,67 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { SafeRoom } from '@/types/game';
 
 interface RoomCardProps {
   name: string;
   room: SafeRoom;
   maxPlayers: number;
-  onJoin: (name: string) => void;
+  initialPlayerName?: string;
+  onJoin: (roomName: string, playerName: string) => void;
 }
 
-export function RoomCard({ name, room, maxPlayers, onJoin }: RoomCardProps) {
+export function RoomCard({
+  name,
+  room,
+  maxPlayers,
+  initialPlayerName = '',
+  onJoin,
+}: RoomCardProps) {
+  const [open, setOpen] = useState(false);
+  const [joinName, setJoinName] = useState(initialPlayerName);
+
+  useEffect(() => {
+    if (initialPlayerName) setJoinName(initialPlayerName);
+  }, [initialPlayerName]);
+
   const statusLabel =
     room.status === 'playing' ? 'Bezig' : room.countdownStarted ? 'Countdown' : 'Lobby';
   const full = room.playerCount >= maxPlayers;
   const disabled = room.status === 'playing' || full;
 
+  const handleOpen = () => {
+    setJoinName(initialPlayerName);
+    setOpen(true);
+  };
+
+  const handleConfirm = () => {
+    const trimmed = joinName.trim();
+    if (!trimmed) {
+      toast.error('Vul je naam in');
+      return;
+    }
+    onJoin(name, trimmed);
+    setOpen(false);
+  };
+
   return (
+    <>
     <Card className="glass-card transition-all hover:shadow-2xl">
       <CardHeader className="space-y-2 pb-2">
         <div className="flex items-start justify-between gap-2">
@@ -43,11 +85,42 @@ export function RoomCard({ name, room, maxPlayers, onJoin }: RoomCardProps) {
           size="sm"
           className="theme-cta"
           disabled={disabled}
-          onClick={() => onJoin(name)}
+          onClick={handleOpen}
         >
           Deelnemen
         </Button>
       </CardContent>
     </Card>
+
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Deelnemen aan {name}</DialogTitle>
+          <DialogDescription>Vul je naam in om mee te doen aan deze game.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 c">
+          <Label htmlFor={`join-name-${name}`}>Naam</Label>
+          <Input
+            id={`join-name-${name}`}
+            placeholder="Jouw naam (bijv. HackerHenk)"
+            maxLength={15}
+            value={joinName}
+            onChange={(e) => setJoinName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleConfirm();
+            }}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Annuleren
+          </Button>
+          <Button className="theme-cta" onClick={handleConfirm} disabled={!joinName.trim()}>
+            Deelnemen
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
