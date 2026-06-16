@@ -1,0 +1,145 @@
+'use client';
+
+import { Crown, DoorOpen, Loader2, Play, Timer, Users } from 'lucide-react';
+import { ThemedShell } from '@/components/layout/ThemedShell';
+import { QuizPanel } from '@/components/game/QuizPanel';
+import { RaceTrack } from '@/components/game/RaceTrack';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { useGameSocket } from '@/hooks/useGameSocket';
+
+interface GameViewProps {
+  roomSlug: string;
+}
+
+export function GameView({ roomSlug }: GameViewProps) {
+  const { state, leave, startCountdown, submitAnswer } = useGameSocket(roomSlug);
+  const playerCount = state.lobbyPlayers.length || Object.keys(state.players).length;
+  const minPct = Math.min(100, (playerCount / state.minPlayers) * 100);
+
+  return (
+    <ThemedShell
+      maxWidth="md"
+      title={state.roomTitle || 'Kamer'}
+      subtitle="Live sessie"
+      badges={
+        <>
+          <Badge variant="secondary" className="gap-1">
+            <Users className="h-3.5 w-3.5 text-primary" />
+            {playerCount} racers
+          </Badge>
+          <Badge variant="outline">{state.phase}</Badge>
+        </>
+      }
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1"
+          onClick={leave}
+        >
+          <DoorOpen className="h-4 w-4" />
+          Verlaat
+        </Button>
+      }
+    >
+      {state.phase === 'connecting' && (
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Verbinden met kamer...
+        </div>
+      )}
+
+      {(state.phase === 'waiting' || state.phase === 'countdown') && (
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Wachtkamer</CardTitle>
+            <CardDescription>
+              {state.isCreator
+                ? 'Jij bent de host. Start zodra iedereen er is.'
+                : 'Wacht tot de host de race start.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {state.lobbyPlayers.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center gap-3 rounded-md border bg-muted px-3 py-2 text-sm"
+                >
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                    style={{ background: p.color }}
+                  >
+                    {p.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="font-medium">{p.name}</span>
+                  {p.id === state.creatorId && (
+                    <Crown className="ml-auto h-4 w-4 text-primary" />
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {state.isCreator && !state.countdownStarted && (
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span>
+                    {playerCount} / {state.minPlayers} spelers (max {state.maxPlayers})
+                  </span>
+                </div>
+                <Progress value={minPct} />
+                <Button
+                  className="theme-cta gap-2"
+                  disabled={playerCount < state.minPlayers}
+                  onClick={startCountdown}
+                >
+                  <Play className="h-4 w-4" />
+                  Start race
+                </Button>
+              </div>
+            )}
+
+            {state.phase === 'countdown' && (
+              <div className="flex flex-col items-center gap-2 py-4">
+                <Timer className="h-6 w-6 text-primary" />
+                <span className="text-5xl font-semibold tabular-nums">{state.countdown}</span>
+                <p className="text-sm text-muted-foreground">seconden tot start</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {state.phase === 'playing' && (
+        <div className="space-y-6">
+          <QuizPanel
+            question={state.question}
+            locked={state.questionLocked}
+            error={state.error}
+            onAnswer={submitAnswer}
+          />
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-base">Race</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RaceTrack players={state.players} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {state.phase === 'finished' && state.winnerName && (
+        <Card className="glass-card border-primary/40">
+          <CardHeader>
+            <CardTitle>Winnaar: {state.winnerName}</CardTitle>
+            <CardDescription>De wachtkamer wordt zo herladen...</CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+    </ThemedShell>
+  );
+}

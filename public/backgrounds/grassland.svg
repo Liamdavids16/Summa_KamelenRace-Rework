@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="savanna" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#87ceeb"/>
+      <stop offset="35%" style="stop-color:#f4d35e"/>
+      <stop offset="70%" style="stop-color:#bc6c25"/>
+      <stop offset="100%" style="stop-color:#6a994e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="60%" cy="25%" r="40%">
+      <stop offset="0%" style="stop-color:#fff8dc;stop-opacity:0.6"/>
+      <stop offset="100%" style="stop-color:#f4d35e;stop-opacity:0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#savanna)"/>
+  <ellipse cx="1150" cy="250" rx="300" ry="200" fill="url(#glow)"/>
+  <path d="M0,650 Q400,620 800,660 T1600,630 T1920,670 L1920,1080 L0,1080 Z" fill="#a7c957"/>
+  <path d="M0,750 Q300,720 600,760 T1200,730 T1920,770 L1920,1080 L0,1080 Z" fill="#6a994e"/>
+  <path d="M0,850 Q200,830 400,870 T800,840 T1200,880 T1920,850 L1920,1080 L0,1080 Z" fill="#386641"/>
+</svg>
