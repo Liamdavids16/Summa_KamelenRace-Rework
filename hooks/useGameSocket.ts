@@ -25,6 +25,8 @@ interface GameState {
   creatorId: string | null;
   question: Question | null;
   questionLocked: boolean;
+  selectedAnswer: number | null;
+  showAnswerFeedback: boolean;
   countdown: number;
   countdownStarted: boolean;
   winnerName: string | null;
@@ -44,6 +46,8 @@ type GameAction =
   | { type: 'TIMER_UPDATE'; tijd: number }
   | { type: 'GAME_STARTED' }
   | { type: 'NEW_QUESTION'; question: Question }
+  | { type: 'SELECT_ANSWER'; index: number }
+  | { type: 'ANSWER_WRONG'; error: string }
   | { type: 'LOCK_QUESTION' }
   | { type: 'UPDATE_GAME'; players: Record<string, Player> }
   | { type: 'WINNER'; name: string }
@@ -60,6 +64,8 @@ const initialState: GameState = {
   creatorId: null,
   question: null,
   questionLocked: false,
+  selectedAnswer: null,
+  showAnswerFeedback: false,
   countdown: 10,
   countdownStarted: false,
   winnerName: null,
@@ -110,21 +116,54 @@ function reducer(state: GameState, action: GameAction): GameState {
     case 'TIMER_UPDATE':
       return { ...state, countdown: action.tijd };
     case 'GAME_STARTED':
-      return { ...state, phase: 'playing', questionLocked: false };
+      return {
+        ...state,
+        phase: 'playing',
+        questionLocked: false,
+        selectedAnswer: null,
+        showAnswerFeedback: false,
+      };
     case 'NEW_QUESTION':
-      return { ...state, question: action.question, questionLocked: false, error: null };
+      return {
+        ...state,
+        question: action.question,
+        questionLocked: false,
+        selectedAnswer: null,
+        showAnswerFeedback: false,
+        error: null,
+      };
+    case 'SELECT_ANSWER':
+      return {
+        ...state,
+        questionLocked: true,
+        selectedAnswer: action.index,
+        showAnswerFeedback: false,
+      };
+    case 'ANSWER_WRONG':
+      return { ...state, showAnswerFeedback: true, error: action.error };
     case 'LOCK_QUESTION':
       return { ...state, questionLocked: true };
     case 'UPDATE_GAME':
       return { ...state, players: action.players };
     case 'WINNER':
-      return { ...state, phase: 'finished', winnerName: action.name, question: null };
+      return {
+        ...state,
+        phase: 'finished',
+        winnerName: action.name,
+        question: null,
+        selectedAnswer: null,
+        showAnswerFeedback: false,
+        error: null,
+      };
     case 'BACK_TO_LOBBY':
       return {
         ...state,
         phase: 'waiting',
         winnerName: null,
         question: null,
+        selectedAnswer: null,
+        showAnswerFeedback: false,
+        error: null,
         countdown: action.tijd,
         countdownStarted: false,
         isCreator: action.creatorId ? action.mySocketId === action.creatorId : state.isCreator,
@@ -160,7 +199,7 @@ export function useGameSocket(roomSlug: string) {
   }, []);
 
   const submitAnswer = useCallback((index: number) => {
-    dispatch({ type: 'LOCK_QUESTION' });
+    dispatch({ type: 'SELECT_ANSWER', index });
     socketRef.current?.emit('submitAnswer', index);
   }, []);
 
@@ -236,7 +275,7 @@ export function useGameSocket(roomSlug: string) {
     });
     socket.on('errorMessage', (msg) => {
       if (msg.includes('Fout!')) {
-        dispatch({ type: 'SET_ERROR', error: msg });
+        dispatch({ type: 'ANSWER_WRONG', error: msg });
       } else {
         toast.error(msg);
         if (msg.includes('gesloten') || msg.includes('vol')) leave();

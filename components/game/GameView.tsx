@@ -179,6 +179,8 @@ export function GameView({ roomSlug }: GameViewProps) {
           <QuizPanel
             question={state.question}
             locked={state.questionLocked}
+            selectedAnswer={state.selectedAnswer}
+            showAnswerFeedback={state.showAnswerFeedback}
             error={state.error}
             onAnswer={submitAnswer}
           />
