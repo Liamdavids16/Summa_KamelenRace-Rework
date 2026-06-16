@@ -93,7 +93,7 @@ export function RoomCard({
     </Card>
 
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
+      <DialogContent variant="borderless">
         <DialogHeader>
           <DialogTitle>Deelnemen aan {name}</DialogTitle>
           <DialogDescription>Vul je naam in om mee te doen aan deze game.</DialogDescription>

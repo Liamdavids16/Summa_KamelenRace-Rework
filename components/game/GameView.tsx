@@ -4,6 +4,17 @@ import { Crown, DoorOpen, Loader2, Play, Timer, Users } from 'lucide-react';
 import { ThemedShell } from '@/components/layout/ThemedShell';
 import { QuizPanel } from '@/components/game/QuizPanel';
 import { RaceTrack } from '@/components/game/RaceTrack';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,15 +45,29 @@ export function GameView({ roomSlug }: GameViewProps) {
         </>
       }
       actions={
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1"
-          onClick={leave}
-        >
-          <DoorOpen className="h-4 w-4" />
-          Verlaat
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outlineleave" size="sm" className="gap-1">
+              <DoorOpen className="h-4 w-4" />
+              Verlaat
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent variant="borderless">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Kamer verlaten?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Weet je zeker dat je de kamer wilt verlaten? Je wordt teruggebracht naar
+                de lobby.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuleren</AlertDialogCancel>
+              <AlertDialogAction variant="destructiveleavedialog" onClick={leave}>
+                Verlaat
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       }
     >
       {state.phase === 'connecting' && (
