@@ -147,7 +147,7 @@ export function LobbyView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="playerName">Naam</Label>
                   <Input
@@ -157,34 +157,6 @@ export function LobbyView() {
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="roomSelect">Bestaande kamer</Label>
-                  <Select
-                    value={selectedRoom}
-                    onValueChange={(val) => {
-                      setSelectedRoom(val);
-                      if (val === '__new__') {
-                        setRoomName('');
-                        setRoomExists(false);
-                        return;
-                      }
-                      setRoomName(val);
-                      void checkRoom(val);
-                    }}
-                  >
-                    <SelectTrigger id="roomSelect">
-                      <SelectValue placeholder="-- Maak een nieuwe kamer --" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__new__">-- Maak een nieuwe kamer --</SelectItem>
-                      {roomNames.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
