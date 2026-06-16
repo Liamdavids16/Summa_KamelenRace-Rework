@@ -29,6 +29,8 @@ export function GameView({ roomSlug }: GameViewProps) {
   const { state, leave, startCountdown, submitAnswer } = useGameSocket(roomSlug);
   const playerCount = state.lobbyPlayers.length || Object.keys(state.players).length;
   const minPct = Math.min(100, (playerCount / state.minPlayers) * 100);
+  const remainingSlots = state.maxPlayers - playerCount;
+  const isLobbyFull = playerCount >= state.maxPlayers;
 
   return (
     <ThemedShell
@@ -116,14 +118,48 @@ export function GameView({ roomSlug }: GameViewProps) {
                   </span>
                 </div>
                 <Progress value={minPct} />
-                <Button
-                  className="theme-cta gap-2"
-                  disabled={playerCount < state.minPlayers}
-                  onClick={startCountdown}
-                >
-                  <Play className="h-4 w-4" />
-                  Start race
-                </Button>
+                {isLobbyFull ? (
+                  <Button
+                    className="theme-cta gap-2"
+                    onClick={startCountdown}
+                  >
+                    <Play className="h-4 w-4" />
+                    Start race
+                  </Button>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button className="theme-cta gap-2">
+                        <Play className="h-4 w-4" />
+                        Start race
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent variant="borderless">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Race starten?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Weet je zeker dat je wilt starten?{' '}
+                          {playerCount < state.minPlayers && (
+                            <>
+                              Er {playerCount === 1 ? 'is' : 'zijn'} nu {playerCount}{' '}
+                              {playerCount === 1 ? 'speler' : 'spelers'} (aanbevolen minimum:{' '}
+                              {state.minPlayers}).{' '}
+                            </>
+                          )}
+                          {remainingSlots === 1
+                            ? 'Er kan nog 1 persoon joinen.'
+                            : `Er kunnen nog ${remainingSlots} mensen joinen.`}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                        <AlertDialogAction className="theme-cta" onClick={startCountdown}>
+                          Start race
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             )}
 

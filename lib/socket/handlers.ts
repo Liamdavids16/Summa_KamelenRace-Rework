@@ -151,10 +151,7 @@ export function registerSocketHandlers(socket: Socket): void {
     if (room.creatorId !== socket.id) return;
 
     const currentCount = Object.keys(room.players).length;
-    if (currentCount < globalSettings.minPlayers) {
-      socket.emit('notEnoughPlayers', { current: currentCount, min: globalSettings.minPlayers });
-      return;
-    }
+    if (currentCount < 1) return;
 
     room.countdownStarted = true;
     const roomId = socket.data.roomId;
