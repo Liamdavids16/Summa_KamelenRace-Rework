@@ -99,7 +99,11 @@
     "phaseWaiting": "warten",
     "phaseCountdown": "countdown",
     "phasePlaying": "spielen",
-    "phaseFinished": "abgeschlossen"
+    "phaseFinished": "abgeschlossen",
+    "nameConflictTitle": "Name bereits vergeben",
+    "nameConflictDescription": "Dieser Name ist bereits in einem anderen Tab oder einer anderen Sitzung aktiv. Wähle einen anderen Namen oder kehre zur Lobby zurück.",
+    "nameConflictSameName": "Wähle einen anderen Namen als deinen aktuellen.",
+    "nameConflictGoHome": "Zur Lobby"
   },
   "win": {
     "congratulations": "Glückwunsch, {name}!",
@@ -156,14 +160,16 @@
     "unknownError": "Unbekannter Fehler",
     "roundEndedKicked": "Runde beendet. Du wurdest zurück zur Lobby gebracht.",
     "youAreHost": "Du bist jetzt der Host",
-    "notEnoughPlayers": "Noch {count} Spieler benötigt, um zu starten"
+    "notEnoughPlayers": "Noch {count} Spieler benötigt, um zu starten",
+    "nameTaken": "Dieser Name ist in diesem Raum bereits vergeben. Wähle einen anderen Namen."
   },
   "errors": {
     "raceInProgress": "Rennen läuft bereits!",
     "roomFull": "Raum ist voll! (Max. {max})",
     "wrongAnswer": "Falsch! Strafsekunde... Du bekommst eine neue Frage.",
     "roomClosedByAdmin": "Raum vom Admin geschlossen.",
-    "wrongPassword": "Falsches Passwort!"
+    "wrongPassword": "Falsches Passwort!",
+    "nameTaken": "Dieser Name ist in diesem Raum bereits vergeben. Wähle einen anderen Namen."
   },
   "localeSwitcher": {
     "label": "Sprache"

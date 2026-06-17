@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
@@ -28,9 +29,12 @@ import {
 import { useLobbyData } from '@/hooks/useLobbyData';
 import { useThemeOptions } from '@/hooks/useActiveTheme';
 import { saveJoinSession } from '@/lib/join-session';
+import { IsPlayerNameTakenInRoom } from '@/lib/room-join';
 import { roomSettingsFromGlobal } from '@/lib/room-settings';
 import { normalizeThemeId, type ThemeId } from '@/lib/themes';
 import type { RoomSettings } from '@/types/game';
+
+type PlayerNameFieldError = 'taken' | null;
 
 export function LobbyView() {
   const router = useRouter();
@@ -40,6 +44,7 @@ export function LobbyView() {
   const themeOptions = useThemeOptions();
   const { rooms, categories, leaderboard, settings, loading, error, refresh } = useLobbyData();
   const [playerName, setPlayerName] = useState('');
+  const [playerNameError, setPlayerNameError] = useState<PlayerNameFieldError>(null);
   const [roomName, setRoomName] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('__new__');
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
@@ -134,6 +139,12 @@ export function LobbyView() {
       return;
     }
 
+    if (roomExists && IsPlayerNameTakenInRoom(rooms[room], name, room)) {
+      setPlayerNameError('taken');
+      return;
+    }
+
+    setPlayerNameError(null);
     saveJoinSession({
       playerName: name,
       roomName: room,
@@ -196,16 +207,23 @@ export function LobbyView() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-2 sm:grid-cols-1">
-                <div className="space-y-2">
-                  <Label htmlFor="playerName">{tCommon('name')}</Label>
+                <Field data-invalid={playerNameError ? true : undefined}>
+                  <FieldLabel htmlFor="playerName">{tCommon('name')}</FieldLabel>
                   <Input
                     id="playerName"
                     placeholder={tCommon('namePlaceholder')}
                     maxLength={15}
                     value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
+                    aria-invalid={playerNameError ? true : undefined}
+                    onChange={(e) => {
+                      setPlayerName(e.target.value);
+                      setPlayerNameError(null);
+                    }}
                   />
-                </div>
+                  {playerNameError === 'taken' && (
+                    <FieldDescription>{tToast('nameTaken')}</FieldDescription>
+                  )}
+                </Field>
               </div>
 
               <div className="space-y-2">

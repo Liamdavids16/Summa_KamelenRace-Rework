@@ -17,6 +17,8 @@ export function useSocketErrorMessage() {
         return t('wrongAnswer');
       case 'roomClosedByAdmin':
         return t('roomClosedByAdmin');
+      case 'nameTaken':
+        return t('nameTaken');
       default:
         return t('raceInProgress');
     }

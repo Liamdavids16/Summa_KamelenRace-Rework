@@ -1,3 +1,4 @@
+import { getClientInstanceId } from '@/lib/client-instance';
 import type { RoomSettings } from '@/types/game';
 
 export const JoinSessionKey = 'kamelenrace:join';
@@ -7,10 +8,17 @@ export interface JoinSession {
   roomName: string;
   categories: string[];
   settings?: RoomSettings;
+  clientInstanceId?: string;
 }
 
 export function saveJoinSession(session: JoinSession): void {
-  sessionStorage.setItem(JoinSessionKey, JSON.stringify(session));
+  sessionStorage.setItem(
+    JoinSessionKey,
+    JSON.stringify({
+      ...session,
+      clientInstanceId: session.clientInstanceId ?? getClientInstanceId(),
+    })
+  );
 }
 
 export function loadJoinSession(): JoinSession | null {

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
-import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { IsPlayerNameTakenInRoom } from '@/lib/room-join';
 import type { SafeRoom } from '@/types/game';
+
+type NameFieldError = 'empty' | 'taken' | null;
 
 interface RoomCardProps {
   name: string;
@@ -37,6 +39,7 @@ export function RoomCard({
   const tToast = useTranslations('toast');
   const [open, setOpen] = useState(false);
   const [joinName, setJoinName] = useState(initialPlayerName);
+  const [nameError, setNameError] = useState<NameFieldError>(null);
 
   useEffect(() => {
     if (initialPlayerName) setJoinName(initialPlayerName);
@@ -54,18 +57,27 @@ export function RoomCard({
 
   const handleOpen = () => {
     setJoinName(initialPlayerName);
+    setNameError(null);
     setOpen(true);
   };
 
   const handleConfirm = () => {
     const trimmed = joinName.trim();
     if (!trimmed) {
-      toast.error(tToast('fillName'));
+      setNameError('empty');
       return;
     }
+    if (IsPlayerNameTakenInRoom(room, trimmed, name)) {
+      setNameError('taken');
+      return;
+    }
+    setNameError(null);
     onJoin(name, trimmed);
     setOpen(false);
   };
+
+  const nameErrorMessage =
+    nameError === 'empty' ? tToast('fillName') : nameError === 'taken' ? tToast('nameTaken') : null;
 
   return (
     <>
@@ -100,19 +112,24 @@ export function RoomCard({
             <DialogTitle>{t('joinRoom', { name })}</DialogTitle>
             <DialogDescription>{t('joinRoomDescription')}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 c">
-            <Label htmlFor={`join-name-${name}`}>{tCommon('name')}</Label>
+          <Field data-invalid={nameError ? true : undefined}>
+            <FieldLabel htmlFor={`join-name-${name}`}>{tCommon('name')}</FieldLabel>
             <Input
               id={`join-name-${name}`}
               placeholder={tCommon('namePlaceholder')}
               maxLength={15}
               value={joinName}
-              onChange={(e) => setJoinName(e.target.value)}
+              aria-invalid={nameError ? true : undefined}
+              onChange={(e) => {
+                setJoinName(e.target.value);
+                setNameError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleConfirm();
               }}
             />
-          </div>
+            {nameErrorMessage && <FieldDescription>{nameErrorMessage}</FieldDescription>}
+          </Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               {tCommon('cancel')}

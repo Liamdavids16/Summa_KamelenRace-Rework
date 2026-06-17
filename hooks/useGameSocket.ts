@@ -15,7 +15,8 @@ import {
   retainGameSocket,
   setActiveGameRoom,
 } from '@/lib/socket/game-socket';
-import { clearJoinSession, loadJoinSession } from '@/lib/join-session';
+import { clearJoinSession, loadJoinSession, saveJoinSession } from '@/lib/join-session';
+import { getClientInstanceId } from '@/lib/client-instance';
 import { applyTheme } from '@/lib/apply-theme';
 import { useSocketErrorMessage } from '@/hooks/useSocketErrorMessage';
 import type {
@@ -50,6 +51,7 @@ interface GameState {
   hasCompletedRound: boolean;
   autoStartDelaySeconds: number;
   error: string | null;
+  nameConflict: boolean;
 }
 
 type GameAction =
@@ -68,7 +70,9 @@ type GameAction =
   | { type: 'Winner'; name: string }
   | { type: 'BackToLobby'; tijd: number; creatorId: string | null; mySocketId: string | null; countdownStarted: boolean }
   | { type: 'SetCreator'; isCreator: boolean }
-  | { type: 'SetError'; error: string | null };
+  | { type: 'SetError'; error: string | null }
+  | { type: 'NameConflict' }
+  | { type: 'ClearNameConflict' };
 
 const initialState: GameState = {
   phase: 'connecting',
@@ -91,6 +95,7 @@ const initialState: GameState = {
   hasCompletedRound: false,
   autoStartDelaySeconds: 10,
   error: null,
+  nameConflict: false,
 };
 
 function reducer(state: GameState, action: GameAction): GameState {
@@ -200,6 +205,10 @@ function reducer(state: GameState, action: GameAction): GameState {
       return { ...state, isCreator: action.isCreator };
     case 'SetError':
       return { ...state, error: action.error };
+    case 'NameConflict':
+      return { ...state, nameConflict: true };
+    case 'ClearNameConflict':
+      return { ...state, nameConflict: false };
     default:
       return state;
   }
@@ -276,6 +285,7 @@ export function useGameSocket(roomSlug: string) {
         roomName: session.roomName,
         categories: session.categories,
         locale: localeRef.current,
+        clientInstanceId: getClientInstanceId(),
         ...(session.settings ? { settings: session.settings } : {}),
       });
     };
@@ -366,6 +376,10 @@ export function useGameSocket(roomSlug: string) {
         });
       });
       socket.on('errorMessage', (payload: SocketErrorPayload) => {
+        if (payload.code === 'nameTaken') {
+          dispatch({ type: 'NameConflict' });
+          return;
+        }
         const msg = resolveErrorRef.current(payload);
         if (payload.code === 'wrongAnswer') {
           dispatch({ type: 'AnswerWrong', error: msg });
@@ -401,5 +415,27 @@ export function useGameSocket(roomSlug: string) {
     socket.emit('setPlayerLocale', locale);
   }, [locale]);
 
-  return { state, leave, startCountdown, submitAnswer };
+  const rejoinWithName = useCallback((newName: string) => {
+    const session = loadJoinSession();
+    const socket = socketRef.current;
+    const trimmed = newName.trim();
+    if (!session || !socket || !trimmed) return false;
+
+    saveJoinSession({
+      ...session,
+      playerName: trimmed,
+    });
+    dispatch({ type: 'ClearNameConflict' });
+    socket.emit('joinRoom', {
+      playerName: trimmed,
+      roomName: session.roomName,
+      categories: session.categories,
+      locale: localeRef.current,
+      clientInstanceId: getClientInstanceId(),
+      ...(session.settings ? { settings: session.settings } : {}),
+    });
+    return true;
+  }, []);
+
+  return { state, leave, startCountdown, submitAnswer, rejoinWithName };
 }

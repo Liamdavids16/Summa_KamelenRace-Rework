@@ -99,7 +99,11 @@
     "phaseWaiting": "waiting",
     "phaseCountdown": "countdown",
     "phasePlaying": "playing",
-    "phaseFinished": "finished"
+    "phaseFinished": "finished",
+    "nameConflictTitle": "Name already in use",
+    "nameConflictDescription": "This name is already active in another tab or session. Choose a different name to continue, or return to the lobby.",
+    "nameConflictSameName": "Choose a different name than your current one.",
+    "nameConflictGoHome": "Back to lobby"
   },
   "win": {
     "congratulations": "Congratulations, {name}!",
@@ -156,14 +160,16 @@
     "unknownError": "Unknown error",
     "roundEndedKicked": "Round ended. You have been returned to the lobby.",
     "youAreHost": "You are now the host",
-    "notEnoughPlayers": "{count} more player(s) needed to start"
+    "notEnoughPlayers": "{count} more player(s) needed to start",
+    "nameTaken": "This name is already taken in this room. Choose a different name."
   },
   "errors": {
     "raceInProgress": "Race already in progress!",
     "roomFull": "Room is full! (Max {max})",
     "wrongAnswer": "Wrong! Penalty second... You get a new question.",
     "roomClosedByAdmin": "Room closed by admin.",
-    "wrongPassword": "Wrong password!"
+    "wrongPassword": "Wrong password!",
+    "nameTaken": "This name is already taken in this room. Choose a different name."
   },
   "localeSwitcher": {
     "label": "Language"

@@ -99,7 +99,11 @@
     "phaseWaiting": "attente",
     "phaseCountdown": "compte à rebours",
     "phasePlaying": "en jeu",
-    "phaseFinished": "terminé"
+    "phaseFinished": "terminé",
+    "nameConflictTitle": "Nom déjà utilisé",
+    "nameConflictDescription": "Ce nom est déjà actif dans un autre onglet ou une autre session. Choisis un autre nom pour continuer, ou retourne au lobby.",
+    "nameConflictSameName": "Choisis un nom différent de ton nom actuel.",
+    "nameConflictGoHome": "Retour au lobby"
   },
   "win": {
     "congratulations": "Félicitations, {name} !",
@@ -156,14 +160,16 @@
     "unknownError": "Erreur inconnue",
     "roundEndedKicked": "Manche terminée. Tu as été renvoyé au lobby.",
     "youAreHost": "Tu es maintenant l'hôte",
-    "notEnoughPlayers": "Encore {count} joueur(s) nécessaire(s) pour démarrer"
+    "notEnoughPlayers": "Encore {count} joueur(s) nécessaire(s) pour démarrer",
+    "nameTaken": "Ce nom est déjà utilisé dans cette salle. Choisis un autre nom."
   },
   "errors": {
     "raceInProgress": "Course déjà en cours !",
     "roomFull": "La salle est pleine ! (Max {max})",
     "wrongAnswer": "Incorrect ! Pénalité d'une seconde... Tu reçois une nouvelle question.",
     "roomClosedByAdmin": "Salle fermée par l'admin.",
-    "wrongPassword": "Mot de passe incorrect !"
+    "wrongPassword": "Mot de passe incorrect !",
+    "nameTaken": "Ce nom est déjà utilisé dans cette salle. Choisis un autre nom."
   },
   "localeSwitcher": {
     "label": "Langue"

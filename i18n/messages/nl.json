@@ -99,7 +99,11 @@
     "phaseWaiting": "wachten",
     "phaseCountdown": "countdown",
     "phasePlaying": "spelen",
-    "phaseFinished": "afgerond"
+    "phaseFinished": "afgerond",
+    "nameConflictTitle": "Naam al in gebruik",
+    "nameConflictDescription": "Deze naam is al actief in een andere tab of sessie. Kies een andere naam om verder te gaan, of ga terug naar de lobby.",
+    "nameConflictSameName": "Kies een andere naam dan je huidige naam.",
+    "nameConflictGoHome": "Naar lobby"
   },
   "win": {
     "congratulations": "Gefeliciteerd, {name}!",
@@ -156,14 +160,16 @@
     "unknownError": "Onbekende fout",
     "roundEndedKicked": "Ronde afgelopen. Je bent terug naar de lobby geplaats.",
     "youAreHost": "Je bent nu de host",
-    "notEnoughPlayers": "Nog {count} speler(s) nodig om te starten"
+    "notEnoughPlayers": "Nog {count} speler(s) nodig om te starten",
+    "nameTaken": "Deze naam is al in gebruik in deze kamer. Kies een andere naam."
   },
   "errors": {
     "raceInProgress": "Race al bezig!",
     "roomFull": "Kamer is vol! (Max {max})",
     "wrongAnswer": "Fout! Strafseconde... Je krijgt een nieuwe vraag.",
     "roomClosedByAdmin": "Kamer gesloten door admin.",
-    "wrongPassword": "Fout wachtwoord!"
+    "wrongPassword": "Fout wachtwoord!",
+    "nameTaken": "Deze naam is al in gebruik in deze kamer. Kies een andere naam."
   },
   "localeSwitcher": {
     "label": "Taal"

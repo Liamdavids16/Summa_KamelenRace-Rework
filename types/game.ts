@@ -29,6 +29,7 @@ export interface Player {
   progress: number;
   color: string;
   locale: string;
+  clientInstanceId: string;
   currentQuestion: Question;
   questionCategory: string;
   questionIndex: number;
@@ -115,10 +116,11 @@ export interface JoinRoomPayload {
   categories: string[];
   settings?: RoomSettings;
   locale?: string;
+  clientInstanceId?: string;
 }
 
 export interface SocketErrorPayload {
-  code: 'raceInProgress' | 'roomFull' | 'wrongAnswer' | 'roomClosedByAdmin';
+  code: 'raceInProgress' | 'roomFull' | 'wrongAnswer' | 'roomClosedByAdmin' | 'nameTaken';
   max?: number;
 }
 

@@ -2,6 +2,7 @@ import type { Socket } from 'socket.io';
 import type { Player, Question, Room } from '@/types/game';
 import { Locales } from '@/i18n/routing';
 import { saveLeaderboard } from '@/lib/leaderboard';
+import { NormalizePlayerName } from '@/lib/room-join';
 import { normalizeRoomSettings, roomSettingsFromGlobal } from '@/lib/room-settings';
 import { saveSettings } from '@/lib/settings';
 import { normalizeThemeId } from '@/lib/themes';
@@ -284,9 +285,11 @@ export function registerSocketHandlers(socket: Socket): void {
     socket.emit('roomStatus', !!rooms[name]);
   });
 
-  socket.on('joinRoom', ({ playerName, roomName, categories, settings, locale }) => {
+  socket.on('joinRoom', ({ playerName, roomName, categories, settings, locale, clientInstanceId }) => {
     const defaultSettings = roomSettingsFromGlobal(globalSettings);
     const roomLocale = NormalizeLocale(locale);
+    const trimmedName = playerName.trim();
+    const instanceId = typeof clientInstanceId === 'string' ? clientInstanceId : '';
     if (!rooms[roomName]) {
       const roomSettings = normalizeRoomSettings(settings ?? {}, defaultSettings);
       rooms[roomName] = {
@@ -314,15 +317,26 @@ export function registerSocketHandlers(socket: Socket): void {
       return;
     }
 
-    const existingByName = Object.entries(room.players).find(([, player]) => player.name === playerName);
+    const existingByName = Object.entries(room.players).find(
+      ([, player]) => NormalizePlayerName(player.name) === NormalizePlayerName(trimmedName)
+    );
     if (existingByName) {
       const [oldSocketId, player] = existingByName;
+      const canReconnect =
+        instanceId !== '' &&
+        (player.clientInstanceId === instanceId || !player.clientInstanceId);
+
+      if (!canReconnect) {
+        return socket.emit('errorMessage', { code: 'nameTaken' });
+      }
+
       CancelDisconnectLeave(oldSocketId);
       CancelDisconnectLeave(socket.id);
       delete room.players[oldSocketId];
       player.id = socket.id;
       room.players[socket.id] = player;
       player.locale = roomLocale;
+      player.clientInstanceId = instanceId;
       if (!player.questionCategory) player.questionCategory = '';
       if (player.questionIndex === undefined || player.questionIndex < 0) {
         const slot = FindQuestionSlotInAnyLocale(player.currentQuestion, room.categories);
@@ -351,10 +365,11 @@ export function registerSocketHandlers(socket: Socket): void {
     socket.data.roomId = roomName;
     const newPlayer: Player = {
       id: socket.id,
-      name: playerName,
+      name: trimmedName,
       progress: 0,
       color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
       locale: roomLocale,
+      clientInstanceId: instanceId,
       currentQuestion: { q: '', options: ['', '', '', ''], answer: 0 },
       questionCategory: '',
       questionIndex: -1,

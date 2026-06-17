@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Crown, DoorOpen, Loader2, Play, Timer, Users } from 'lucide-react';
 import { ThemedShell } from '@/components/layout/ThemedShell';
@@ -20,12 +21,18 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { useGameSocket, type GamePhase } from '@/hooks/useGameSocket';
+import { loadJoinSession } from '@/lib/join-session';
+import { NormalizePlayerName } from '@/lib/room-join';
 
 interface GameViewProps {
   roomSlug: string;
 }
+
+type NameFieldError = 'empty' | 'taken' | 'same' | null;
 
 const PhaseKeys: Record<GamePhase, string> = {
   connecting: 'phaseConnecting',
@@ -38,11 +45,52 @@ const PhaseKeys: Record<GamePhase, string> = {
 export function GameView({ roomSlug }: GameViewProps) {
   const t = useTranslations('game');
   const tCommon = useTranslations('common');
-  const { state, leave, startCountdown, submitAnswer } = useGameSocket(roomSlug);
+  const tToast = useTranslations('toast');
+  const { state, leave, startCountdown, submitAnswer, rejoinWithName } = useGameSocket(roomSlug);
+  const [replacementName, setReplacementName] = useState('');
+  const [nameError, setNameError] = useState<NameFieldError>(null);
   const playerCount = state.lobbyPlayers.length || Object.keys(state.players).length;
   const minPct = Math.min(100, (playerCount / state.minPlayers) * 100);
   const remainingSlots = state.maxPlayers - playerCount;
   const isLobbyFull = playerCount >= state.maxPlayers;
+
+  useEffect(() => {
+    if (!state.nameConflict) return;
+    setReplacementName('');
+    setNameError(null);
+  }, [state.nameConflict]);
+
+  const nameErrorMessage =
+    nameError === 'empty'
+      ? tToast('fillName')
+      : nameError === 'taken'
+        ? tToast('nameTaken')
+        : nameError === 'same'
+          ? t('nameConflictSameName')
+          : null;
+
+  const handleNameConflictJoin = () => {
+    const trimmed = replacementName.trim();
+    const session = loadJoinSession();
+    if (!trimmed) {
+      setNameError('empty');
+      return;
+    }
+    if (session && NormalizePlayerName(trimmed) === NormalizePlayerName(session.playerName)) {
+      setNameError('same');
+      return;
+    }
+    const taken = state.lobbyPlayers.some(
+      (player) => NormalizePlayerName(player.name) === NormalizePlayerName(trimmed)
+    );
+    if (taken) {
+      setNameError('taken');
+      return;
+    }
+    if (!rejoinWithName(trimmed)) {
+      setNameError('empty');
+    }
+  };
 
   return (
     <ThemedShell
@@ -219,6 +267,39 @@ export function GameView({ roomSlug }: GameViewProps) {
           autoStartDelaySeconds={state.autoStartDelaySeconds}
         />
       )}
+
+      <AlertDialog open={state.nameConflict}>
+        <AlertDialogContent variant="borderless">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('nameConflictTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('nameConflictDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <Field data-invalid={nameError ? true : undefined}>
+            <FieldLabel htmlFor="name-conflict-input">{tCommon('name')}</FieldLabel>
+            <Input
+              id="name-conflict-input"
+              placeholder={tCommon('namePlaceholder')}
+              maxLength={15}
+              value={replacementName}
+              aria-invalid={nameError ? true : undefined}
+              onChange={(e) => {
+                setReplacementName(e.target.value);
+                setNameError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleNameConflictJoin();
+              }}
+            />
+            {nameErrorMessage && <FieldDescription>{nameErrorMessage}</FieldDescription>}
+          </Field>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={leave}>{t('nameConflictGoHome')}</AlertDialogCancel>
+            <AlertDialogAction className="theme-cta" onClick={handleNameConflictJoin}>
+              {tCommon('join')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ThemedShell>
   );
 }
