@@ -4,6 +4,7 @@ import { Crown, DoorOpen, Loader2, Play, Timer, Users } from 'lucide-react';
 import { ThemedShell } from '@/components/layout/ThemedShell';
 import { QuizPanel } from '@/components/game/QuizPanel';
 import { RaceTrack } from '@/components/game/RaceTrack';
+import { WinScreen } from '@/components/game/WinScreen';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,12 +197,7 @@ export function GameView({ roomSlug }: GameViewProps) {
       )}
 
       {state.phase === 'finished' && state.winnerName && (
-        <Card className="glass-card border-primary/40">
-          <CardHeader>
-            <CardTitle>Winnaar: {state.winnerName}</CardTitle>
-            <CardDescription>De wachtkamer wordt zo herladen...</CardDescription>
-          </CardHeader>
-        </Card>
+        <WinScreen winnerName={state.winnerName} players={state.players} />
       )}
     </ThemedShell>
   );
