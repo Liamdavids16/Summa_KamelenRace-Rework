@@ -4,9 +4,9 @@
     "description": "Summa Kamelenrace - real-time multiplayer quiz race",
     "private": true,
     "scripts": {
-        "dev": "tsx watch server.ts",
+        "dev": "bun server.ts",
         "build": "next build",
-        "start": "tsx server.ts",
+        "start": "bun server.ts",
         "lint": "next lint"
     },
     "keywords": [],
