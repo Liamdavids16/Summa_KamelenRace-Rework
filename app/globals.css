@@ -185,6 +185,15 @@
     box-shadow: 0 2px 12px color-mix(in oklch, var(--primary) 45%, transparent);
   }
 
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   .hero-title {
     @apply text-3xl font-bold tracking-wide text-card-foreground sm:text-4xl;
   }
