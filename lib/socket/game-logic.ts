@@ -1,5 +1,6 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import type { Question, SafeRooms } from '@/types/game';
+import { Locales } from '@/i18n/routing';
 import { refreshQuestionBank } from '@/lib/questions';
 import { rooms } from './state';
 
@@ -16,15 +17,12 @@ export function getIO(): SocketIOServer {
   return ioInstance;
 }
 
-export function getRandomQuestion(cats: string[], locale = 'nl'): Question {
-  const bank = refreshQuestionBank(locale);
-  let pool: Question[] = [];
-  cats.forEach((c) => {
-    if (bank[c]) pool = pool.concat(bank[c]);
-  });
-  if (pool.length === 0) pool = bank['HTML & CSS'];
+export interface QuestionSlot {
+  category: string;
+  index: number;
+}
 
-  const original = pool[Math.floor(Math.random() * pool.length)];
+export function ShuffleQuestion(original: Question): Question {
   const correctText = original.options[original.answer];
   const shuffled: Question = {
     q: original.q,
@@ -37,6 +35,57 @@ export function getRandomQuestion(cats: string[], locale = 'nl'): Question {
   }
   shuffled.answer = shuffled.options.indexOf(correctText);
   return shuffled;
+}
+
+export function PickRandomQuestionSlot(
+  cats: string[],
+  locale = 'nl'
+): { question: Question; category: string; index: number } {
+  const bank = refreshQuestionBank(locale);
+  const availableCats = cats.filter((category) => bank[category]?.length);
+  const category =
+    availableCats[Math.floor(Math.random() * availableCats.length)] ?? 'HTML & CSS';
+  const questions = bank[category] ?? bank['HTML & CSS'] ?? [];
+  const index = Math.floor(Math.random() * questions.length);
+  return {
+    question: ShuffleQuestion(questions[index]),
+    category,
+    index,
+  };
+}
+
+export function ResolveQuestionSlot(locale: string, category: string, index: number): Question | null {
+  const bank = refreshQuestionBank(locale);
+  const original = bank[category]?.[index];
+  if (!original) return null;
+  return ShuffleQuestion(original);
+}
+
+export function FindQuestionSlot(
+  question: Question,
+  cats: string[],
+  locale: string
+): QuestionSlot | null {
+  const bank = refreshQuestionBank(locale);
+  for (const category of cats) {
+    const list = bank[category];
+    if (!list) continue;
+    const index = list.findIndex((item) => item.q === question.q);
+    if (index >= 0) return { category, index };
+  }
+  return null;
+}
+
+export function FindQuestionSlotInAnyLocale(question: Question, cats: string[]): QuestionSlot | null {
+  for (const locale of Locales) {
+    const slot = FindQuestionSlot(question, cats, locale);
+    if (slot) return slot;
+  }
+  return null;
+}
+
+export function getRandomQuestion(cats: string[], locale = 'nl'): Question {
+  return PickRandomQuestionSlot(cats, locale).question;
 }
 
 export function getSafeRooms(): SafeRooms {

@@ -8,3 +8,5 @@ export const routing = defineRouting({
   defaultLocale: 'nl',
   localePrefix: 'never',
 });
+
+export const AppTimeZone = 'Europe/Amsterdam';

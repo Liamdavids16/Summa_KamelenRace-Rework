@@ -1,4 +1,5 @@
 import type { Socket } from 'socket.io';
+import type { Player, Question, Room } from '@/types/game';
 import { Locales } from '@/i18n/routing';
 import { saveLeaderboard } from '@/lib/leaderboard';
 import { normalizeRoomSettings, roomSettingsFromGlobal } from '@/lib/room-settings';
@@ -20,13 +21,63 @@ import {
 import {
   broadcastLobbyUpdate,
   broadcastRooms,
+  FindQuestionSlotInAnyLocale,
   getIO,
-  getRandomQuestion,
+  PickRandomQuestionSlot,
+  ResolveQuestionSlot,
   getSafeRooms,
 } from './game-logic';
 
 function NormalizeLocale(locale?: string): string {
   return Locales.includes(locale as (typeof Locales)[number]) ? locale! : 'nl';
+}
+
+const DisconnectGraceMs = 4000;
+const PendingDisconnects = new Map<string, ReturnType<typeof setTimeout>>();
+
+function CancelDisconnectLeave(socketId: string): void {
+  const timer = PendingDisconnects.get(socketId);
+  if (!timer) return;
+  clearTimeout(timer);
+  PendingDisconnects.delete(socketId);
+}
+
+function ScheduleDisconnectLeave(socket: Socket): void {
+  const socketId = socket.id;
+  const roomName = socket.data.roomId;
+  if (!roomName || !rooms[roomName]?.players[socketId]) return;
+
+  CancelDisconnectLeave(socketId);
+
+  const timer = setTimeout(() => {
+    PendingDisconnects.delete(socketId);
+    if (rooms[roomName]?.players[socketId]) {
+      leave(socket);
+    }
+  }, DisconnectGraceMs);
+
+  PendingDisconnects.set(socketId, timer);
+}
+
+function AssignRandomQuestionToPlayer(player: Player, room: Room): void {
+  const picked = PickRandomQuestionSlot(room.categories, player.locale);
+  player.currentQuestion = picked.question;
+  player.questionCategory = picked.category;
+  player.questionIndex = picked.index;
+}
+
+function LocalizePlayerQuestion(player: Player, room: Room): Question | null {
+  if (player.questionCategory && player.questionIndex >= 0) {
+    const resolved = ResolveQuestionSlot(player.locale, player.questionCategory, player.questionIndex);
+    if (resolved) return resolved;
+  }
+
+  const slot = FindQuestionSlotInAnyLocale(player.currentQuestion, room.categories);
+  if (!slot) return null;
+
+  player.questionCategory = slot.category;
+  player.questionIndex = slot.index;
+  return ResolveQuestionSlot(player.locale, slot.category, slot.index);
 }
 
 function BuildAdminData(locale?: string) {
@@ -120,7 +171,10 @@ export function startTimer(name: string): void {
       r.status = 'playing';
       getIO().to(name).emit('gameStarted');
       for (const id in r.players) {
-        getIO().to(id).emit('newQuestion', r.players[id].currentQuestion);
+        const player = r.players[id];
+        const localized = LocalizePlayerQuestion(player, r) ?? player.currentQuestion;
+        player.currentQuestion = localized;
+        getIO().to(id).emit('newQuestion', localized);
       }
     }
   }, 1000);
@@ -135,8 +189,9 @@ export function resetRoom(name: string, autoStartNext = false): void {
   rooms[name].countdownStarted = autoStartNext;
 
   for (const id in rooms[name].players) {
-    rooms[name].players[id].progress = 0;
-    rooms[name].players[id].currentQuestion = getRandomQuestion(rooms[name].categories, rooms[name].locale);
+    const player = rooms[name].players[id];
+    player.progress = 0;
+    AssignRandomQuestionToPlayer(player, rooms[name]);
   }
 
   getIO()
@@ -154,6 +209,44 @@ export function resetRoom(name: string, autoStartNext = false): void {
     startTimer(name);
     updateAdmin();
   }
+}
+
+function SyncPlayerRoomState(socket: Socket, roomName: string): void {
+  const room = rooms[roomName];
+  if (!room) return;
+
+  const player = room.players[socket.id];
+  if (!player) return;
+
+  socket.join(roomName);
+  socket.data.roomId = roomName;
+  const isCreator = room.creatorId === socket.id;
+
+  socket.emit('settingsUpdated', globalSettings);
+  getIO().to(roomName).emit('updateGame', room.players);
+
+  if (room.hasWinner) {
+    const winner = Object.values(room.players).find((p) => p.progress >= 100);
+    if (winner) socket.emit('winner', winner.name);
+    return;
+  }
+
+  if (room.status === 'playing') {
+    socket.emit('gameStarted');
+    const localized = LocalizePlayerQuestion(player, room) ?? player.currentQuestion;
+    player.currentQuestion = localized;
+    socket.emit('newQuestion', localized);
+    return;
+  }
+
+  socket.emit('waitingPhase', {
+    tijd: room.countdown,
+    categories: room.categories,
+    isCreator,
+    countdownStarted: room.countdownStarted,
+    settings: room.settings,
+  });
+  broadcastLobbyUpdate(roomName);
 }
 
 export function leave(socket: Socket): void {
@@ -212,6 +305,41 @@ export function registerSocketHandlers(socket: Socket): void {
       broadcastRooms();
     }
     const room = rooms[roomName];
+    if (room.players[socket.id]) {
+      room.players[socket.id].locale = roomLocale;
+      CancelDisconnectLeave(socket.id);
+      SyncPlayerRoomState(socket, roomName);
+      broadcastRooms();
+      updateAdmin();
+      return;
+    }
+
+    const existingByName = Object.entries(room.players).find(([, player]) => player.name === playerName);
+    if (existingByName) {
+      const [oldSocketId, player] = existingByName;
+      CancelDisconnectLeave(oldSocketId);
+      CancelDisconnectLeave(socket.id);
+      delete room.players[oldSocketId];
+      player.id = socket.id;
+      room.players[socket.id] = player;
+      player.locale = roomLocale;
+      if (!player.questionCategory) player.questionCategory = '';
+      if (player.questionIndex === undefined || player.questionIndex < 0) {
+        const slot = FindQuestionSlotInAnyLocale(player.currentQuestion, room.categories);
+        if (slot) {
+          player.questionCategory = slot.category;
+          player.questionIndex = slot.index;
+        }
+      }
+      if (room.creatorId === oldSocketId) {
+        room.creatorId = socket.id;
+      }
+      SyncPlayerRoomState(socket, roomName);
+      broadcastRooms();
+      updateAdmin();
+      return;
+    }
+
     if (room.status === 'playing') return socket.emit('errorMessage', { code: 'raceInProgress' });
     if (Object.keys(room.players).length >= room.settings.maxPlayers)
       return socket.emit('errorMessage', {
@@ -221,13 +349,18 @@ export function registerSocketHandlers(socket: Socket): void {
 
     socket.join(roomName);
     socket.data.roomId = roomName;
-    room.players[socket.id] = {
+    const newPlayer: Player = {
       id: socket.id,
       name: playerName,
       progress: 0,
       color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
-      currentQuestion: getRandomQuestion(room.categories, room.locale),
+      locale: roomLocale,
+      currentQuestion: { q: '', options: ['', '', '', ''], answer: 0 },
+      questionCategory: '',
+      questionIndex: -1,
     };
+    AssignRandomQuestionToPlayer(newPlayer, room);
+    room.players[socket.id] = newPlayer;
 
     const isCreator = room.creatorId === socket.id;
     socket.emit('settingsUpdated', globalSettings);
@@ -278,15 +411,35 @@ export function registerSocketHandlers(socket: Socket): void {
           );
         }
       } else {
-        p.currentQuestion = getRandomQuestion(room.categories, room.locale);
+        AssignRandomQuestionToPlayer(p, room);
         socket.emit('newQuestion', p.currentQuestion);
       }
     } else {
       socket.emit('errorMessage', { code: 'wrongAnswer' });
-      p.currentQuestion = getRandomQuestion(room.categories, room.locale);
+      AssignRandomQuestionToPlayer(p, room);
       setTimeout(() => socket.emit('newQuestion', p.currentQuestion), 1500);
     }
     if (roomId) getIO().to(roomId).emit('updateGame', room.players);
+  });
+
+  socket.on('setPlayerLocale', (locale) => {
+    const roomName = socket.data.roomId;
+    if (!roomName || !rooms[roomName]) return;
+    const player = rooms[roomName].players[socket.id];
+    if (!player) return;
+
+    const nextLocale = NormalizeLocale(locale);
+    if (nextLocale === player.locale) return;
+    player.locale = nextLocale;
+
+    const room = rooms[roomName];
+    if (room.status !== 'playing' || room.hasWinner) return;
+
+    const localized = LocalizePlayerQuestion(player, room);
+    if (!localized) return;
+
+    player.currentQuestion = localized;
+    socket.emit('newQuestion', localized);
   });
 
   socket.on('adminLogin', (pass, locale) => {
@@ -405,9 +558,10 @@ export function registerSocketHandlers(socket: Socket): void {
   });
 
   socket.on('disconnect', () => {
-    leave(socket);
+    ScheduleDisconnectLeave(socket);
   });
   socket.on('leaveRoom', () => {
+    CancelDisconnectLeave(socket.id);
     leave(socket);
   });
 }

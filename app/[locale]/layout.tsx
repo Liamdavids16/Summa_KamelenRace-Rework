@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
-import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { ClientIntlProvider } from '@/components/layout/ClientIntlProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
 import { routing, type AppLocale } from '@/i18n/routing';
@@ -48,10 +48,10 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} data-theme={theme} suppressHydrationWarning>
       <body className={GeistSans.className}>
-        <NextIntlClientProvider messages={messages}>
+        <ClientIntlProvider locale={locale as AppLocale} initialMessages={messages}>
           <ThemeProvider initialTheme={theme}>{children}</ThemeProvider>
           <Toaster />
-        </NextIntlClientProvider>
+        </ClientIntlProvider>
       </body>
     </html>
   );

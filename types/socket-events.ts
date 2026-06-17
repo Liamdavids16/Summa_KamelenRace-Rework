@@ -49,6 +49,7 @@ export interface ClientToServerEvents {
   creatorStartCountdown: () => void;
   submitAnswer: (idx: number) => void;
   leaveRoom: () => void;
+  setPlayerLocale: (locale: string) => void;
   adminLogin: (pass: string, locale?: string) => void;
   adminSetQuestionLocale: (locale: string) => void;
   adminForceStart: (name: string) => void;

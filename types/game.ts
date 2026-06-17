@@ -28,7 +28,10 @@ export interface Player {
   name: string;
   progress: number;
   color: string;
+  locale: string;
   currentQuestion: Question;
+  questionCategory: string;
+  questionIndex: number;
 }
 
 export type RoomStatus = 'waiting' | 'playing';

@@ -4,7 +4,17 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { createSocket, type GameSocket } from '@/lib/socket/client';
+import type { GameSocket } from '@/lib/socket/client';
+import {
+  areGameSocketListenersBound,
+  destroyGameSocket,
+  getActiveGameRoom,
+  getGameSocket,
+  markGameSocketListenersBound,
+  releaseGameSocket,
+  retainGameSocket,
+  setActiveGameRoom,
+} from '@/lib/socket/game-socket';
 import { clearJoinSession, loadJoinSession } from '@/lib/join-session';
 import { applyTheme } from '@/lib/apply-theme';
 import { useSocketErrorMessage } from '@/hooks/useSocketErrorMessage';
@@ -222,8 +232,11 @@ export function useGameSocket(roomSlug: string) {
   tGameRef.current = tGame;
 
   const leave = useCallback(() => {
-    socketRef.current?.emit('leaveRoom');
-    socketRef.current?.disconnect();
+    const socket = socketRef.current;
+    if (socket) {
+      socket.emit('leaveRoom');
+      destroyGameSocket();
+    }
     clearJoinSession();
     router.push('/');
   }, [router]);
@@ -250,14 +263,14 @@ export function useGameSocket(roomSlug: string) {
       return;
     }
 
-    const socket = createSocket();
+    const socket = getGameSocket();
     socketRef.current = socket;
-    let joined = false;
+    retainGameSocket();
+    const resumingSameRoom = getActiveGameRoom() === session.roomName;
+    let joined = resumingSameRoom && socket.connected;
     let joinFallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const join = () => {
-      if (joined || !socket.connected) return;
-      joined = true;
+    const emitJoinRoom = () => {
       socket.emit('joinRoom', {
         playerName: session.playerName,
         roomName: session.roomName,
@@ -265,6 +278,13 @@ export function useGameSocket(roomSlug: string) {
         locale: localeRef.current,
         ...(session.settings ? { settings: session.settings } : {}),
       });
+    };
+
+    const join = () => {
+      if (joined || !socket.connected) return;
+      joined = true;
+      setActiveGameRoom(session.roomName);
+      emitJoinRoom();
     };
 
     const scheduleJoin = () => {
@@ -278,85 +298,108 @@ export function useGameSocket(roomSlug: string) {
       join();
     };
 
-    socket.on('connect', scheduleJoin);
-    socket.on('mySocketId', (id) => dispatch({ type: 'SetSocketId', id }));
-    socket.on('waitingPhase', (data) => {
-      dispatch({
-        type: 'WaitingPhase',
-        data,
-        roomName: session.roomName,
-        mixLabel: tGameRef.current('mix'),
-      });
-      if (data.settings?.theme) applyGameTheme(data.settings.theme);
-    });
-    socket.on('lobbyUpdate', (data) => {
-      dispatch({
-        type: 'LobbyUpdate',
-        players: data.players,
-        countdownStarted: data.countdownStarted,
-        creatorId: data.creatorId,
-      });
-    });
-    socket.on('countdownStarted', (tijd) => dispatch({ type: 'CountdownStarted', tijd }));
-    socket.on('timerUpdate', (tijd) => dispatch({ type: 'TimerUpdate', tijd }));
-    socket.on('gameStarted', () => dispatch({ type: 'GameStarted' }));
-    socket.on('newQuestion', (q) => dispatch({ type: 'NewQuestion', question: q }));
-    socket.on('updateGame', (players) => dispatch({ type: 'UpdateGame', players }));
-    socket.on('winner', (name) => dispatch({ type: 'Winner', name }));
-    socket.on('kickedAfterRound', () => {
-      toast.message(tToastRef.current('roundEndedKicked'));
-      clearJoinSession();
-      routerRef.current.push('/');
-    });
-    socket.on('youAreNowCreator', () => {
-      dispatch({ type: 'SetCreator', isCreator: true });
-      toast.message(tToastRef.current('youAreHost'));
-    });
-    socket.on('notEnoughPlayers', (data) => {
-      toast.error(tToastRef.current('notEnoughPlayers', { count: data.min - data.current }));
-    });
-    socket.on('backToLobby', (data) => {
-      const creatorId = data && typeof data === 'object' && 'creatorId' in data ? data.creatorId : null;
-      const tijd =
-        data && typeof data === 'object' && 'tijd' in data
-          ? data.tijd
-          : typeof data === 'number'
-            ? data
-            : 10;
-      const countdownStarted =
-        data && typeof data === 'object' && 'countdownStarted' in data
-          ? Boolean(data.countdownStarted)
-          : false;
-      dispatch({
-        type: 'BackToLobby',
-        tijd,
-        creatorId,
-        mySocketId: mySocketIdRef.current,
-        countdownStarted,
-      });
-    });
-    socket.on('errorMessage', (payload: SocketErrorPayload) => {
-      const msg = resolveErrorRef.current(payload);
-      if (payload.code === 'wrongAnswer') {
-        dispatch({ type: 'AnswerWrong', error: msg });
-      } else {
-        toast.error(msg);
-        if (payload.code === 'roomClosedByAdmin' || payload.code === 'roomFull') leaveRef.current();
+    const resumeOrJoin = () => {
+      if (resumingSameRoom && socket.connected) {
+        joined = true;
+        emitJoinRoom();
+        return;
       }
-    });
+      scheduleJoin();
+    };
 
-    socket.connect();
-    if (socket.connected) scheduleJoin();
+    if (!areGameSocketListenersBound()) {
+      socket.on('connect', resumeOrJoin);
+      socket.on('mySocketId', (id) => dispatch({ type: 'SetSocketId', id }));
+      socket.on('waitingPhase', (data) => {
+        dispatch({
+          type: 'WaitingPhase',
+          data,
+          roomName: session.roomName,
+          mixLabel: tGameRef.current('mix'),
+        });
+        if (data.settings?.theme) applyGameTheme(data.settings.theme);
+      });
+      socket.on('lobbyUpdate', (data) => {
+        dispatch({
+          type: 'LobbyUpdate',
+          players: data.players,
+          countdownStarted: data.countdownStarted,
+          creatorId: data.creatorId,
+        });
+      });
+      socket.on('countdownStarted', (tijd) => dispatch({ type: 'CountdownStarted', tijd }));
+      socket.on('timerUpdate', (tijd) => dispatch({ type: 'TimerUpdate', tijd }));
+      socket.on('gameStarted', () => dispatch({ type: 'GameStarted' }));
+      socket.on('newQuestion', (q) => dispatch({ type: 'NewQuestion', question: q }));
+      socket.on('updateGame', (players) => dispatch({ type: 'UpdateGame', players }));
+      socket.on('winner', (name) => dispatch({ type: 'Winner', name }));
+      socket.on('kickedAfterRound', () => {
+        toast.message(tToastRef.current('roundEndedKicked'));
+        clearJoinSession();
+        routerRef.current.push('/');
+      });
+      socket.on('youAreNowCreator', () => {
+        dispatch({ type: 'SetCreator', isCreator: true });
+        toast.message(tToastRef.current('youAreHost'));
+      });
+      socket.on('notEnoughPlayers', (data) => {
+        toast.error(tToastRef.current('notEnoughPlayers', { count: data.min - data.current }));
+      });
+      socket.on('backToLobby', (data) => {
+        const creatorId = data && typeof data === 'object' && 'creatorId' in data ? data.creatorId : null;
+        const tijd =
+          data && typeof data === 'object' && 'tijd' in data
+            ? data.tijd
+            : typeof data === 'number'
+              ? data
+              : 10;
+        const countdownStarted =
+          data && typeof data === 'object' && 'countdownStarted' in data
+            ? Boolean(data.countdownStarted)
+            : false;
+        dispatch({
+          type: 'BackToLobby',
+          tijd,
+          creatorId,
+          mySocketId: mySocketIdRef.current,
+          countdownStarted,
+        });
+      });
+      socket.on('errorMessage', (payload: SocketErrorPayload) => {
+        const msg = resolveErrorRef.current(payload);
+        if (payload.code === 'wrongAnswer') {
+          dispatch({ type: 'AnswerWrong', error: msg });
+        } else {
+          toast.error(msg);
+          if (payload.code === 'roomClosedByAdmin' || payload.code === 'roomFull') leaveRef.current();
+        }
+      });
+      markGameSocketListenersBound();
+    }
+
+    if (socket.connected) resumeOrJoin();
+    else socket.connect();
 
     return () => {
       if (joinFallbackTimer) clearTimeout(joinFallbackTimer);
-      socket.off('connect', scheduleJoin);
-      if (joined) socket.emit('leaveRoom');
-      socket.disconnect();
-      socket.removeAllListeners();
       socketRef.current = null;
+
+      const stillOnRoomPage = window.location.pathname.includes('/room/');
+      if (!stillOnRoomPage && joined) {
+        setActiveGameRoom(null);
+        socket.emit('leaveRoom');
+        releaseGameSocket(true);
+        return;
+      }
+      releaseGameSocket(false);
     };
-  }, [roomSlug, locale]);
+  }, [roomSlug]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected || !getActiveGameRoom()) return;
+    socket.emit('setPlayerLocale', locale);
+  }, [locale]);
 
   return { state, leave, startCountdown, submitAnswer };
 }
