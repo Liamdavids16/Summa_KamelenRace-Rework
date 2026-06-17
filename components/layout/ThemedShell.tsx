@@ -1,6 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
+import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import { useActiveTheme } from '@/hooks/useActiveTheme';
 
 interface ThemedShellProps {
@@ -31,6 +33,7 @@ export function ThemedShell({
   maxWidth = 'lg',
 }: ThemedShellProps) {
   const theme = useActiveTheme();
+  const t = useTranslations('common');
 
   return (
     <div className="page-shell flex min-h-screen flex-col">
@@ -42,19 +45,18 @@ export function ThemedShell({
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-                  Summa ICT
+                  {t('brand')}
                 </p>
                 <h1 className="hero-title">{title ?? theme.heroTitle}</h1>
                 {(subtitle ?? theme.heroSubtitle) && (
                   <p className="text-sm text-muted-foreground">{subtitle ?? theme.heroSubtitle}</p>
                 )}
               </div>
-              {(badges || actions) && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {badges}
-                  {actions}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {badges}
+                <LocaleSwitcher />
+                {actions}
+              </div>
             </div>
           </div>
         </header>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,15 +24,15 @@ export function QuizPanel({
   error,
   onAnswer,
 }: QuizPanelProps) {
+  const t = useTranslations('game');
+
   return (
     <Card className="glass-card">
       <CardHeader className="space-y-2">
         <CardTitle className="text-lg font-medium leading-snug">
-          {question?.q ?? 'Vraag laden...'}
+          {question?.q ?? t('loadingQuestion')}
         </CardTitle>
-        {error && showAnswerFeedback && (
-          <p className="text-sm text-red-400">{error}</p>
-        )}
+        {error && showAnswerFeedback && <p className="text-sm text-red-400">{error}</p>}
       </CardHeader>
       <CardContent className="grid gap-2 sm:grid-cols-2">
         {question?.options.map((option, index) => {

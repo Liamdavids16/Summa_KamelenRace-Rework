@@ -2,15 +2,18 @@
 
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { createSocket, type GameSocket } from '@/lib/socket/client';
 import { clearJoinSession, loadJoinSession } from '@/lib/join-session';
 import { applyTheme } from '@/lib/apply-theme';
+import { useSocketErrorMessage } from '@/hooks/useSocketErrorMessage';
 import type {
   GlobalSettings,
   LobbyPlayer,
   Player,
   Question,
+  SocketErrorPayload,
   WaitingPhaseData,
 } from '@/types/game';
 
@@ -42,7 +45,7 @@ interface GameState {
 type GameAction =
   | { type: 'SetSocketId'; id: string }
   | { type: 'SetSettings'; settings: GlobalSettings }
-  | { type: 'WaitingPhase'; data: WaitingPhaseData; roomName: string }
+  | { type: 'WaitingPhase'; data: WaitingPhaseData; roomName: string; mixLabel: string }
   | { type: 'LobbyUpdate'; players: LobbyPlayer[]; countdownStarted: boolean; creatorId: string }
   | { type: 'CountdownStarted'; tijd: number }
   | { type: 'TimerUpdate'; tijd: number }
@@ -94,7 +97,7 @@ function reducer(state: GameState, action: GameAction): GameState {
     case 'WaitingPhase': {
       const catText =
         action.data.categories.length > 2
-          ? 'Mix'
+          ? action.mixLabel
           : action.data.categories.join(' & ');
       const roomSettings = action.data.settings;
       return {
@@ -198,9 +201,25 @@ function applyGameTheme(theme: string) {
 
 export function useGameSocket(roomSlug: string) {
   const router = useRouter();
+  const locale = useLocale();
+  const tToast = useTranslations('toast');
+  const tGame = useTranslations('game');
+  const resolveError = useSocketErrorMessage();
   const [state, dispatch] = useReducer(reducer, initialState);
   const socketRef = useRef<GameSocket | null>(null);
   const mySocketIdRef = useRef<string | null>(null);
+  const resolveErrorRef = useRef(resolveError);
+  const leaveRef = useRef<() => void>(() => {});
+  const routerRef = useRef(router);
+  const localeRef = useRef(locale);
+  const tToastRef = useRef(tToast);
+  const tGameRef = useRef(tGame);
+
+  resolveErrorRef.current = resolveError;
+  routerRef.current = router;
+  localeRef.current = locale;
+  tToastRef.current = tToast;
+  tGameRef.current = tGame;
 
   const leave = useCallback(() => {
     socketRef.current?.emit('leaveRoom');
@@ -208,6 +227,8 @@ export function useGameSocket(roomSlug: string) {
     clearJoinSession();
     router.push('/');
   }, [router]);
+
+  leaveRef.current = leave;
 
   const startCountdown = useCallback(() => {
     socketRef.current?.emit('creatorStartCountdown');
@@ -225,29 +246,47 @@ export function useGameSocket(roomSlug: string) {
   useEffect(() => {
     const session = loadJoinSession();
     if (!session || decodeURIComponent(roomSlug) !== session.roomName) {
-      router.replace('/');
+      routerRef.current.replace('/');
       return;
     }
 
     const socket = createSocket();
     socketRef.current = socket;
     let joined = false;
+    let joinFallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
     const join = () => {
-      if (joined) return;
+      if (joined || !socket.connected) return;
       joined = true;
       socket.emit('joinRoom', {
         playerName: session.playerName,
         roomName: session.roomName,
         categories: session.categories,
+        locale: localeRef.current,
         ...(session.settings ? { settings: session.settings } : {}),
       });
     };
 
-    socket.on('connect', join);
+    const scheduleJoin = () => {
+      if (joined) return;
+      const engine = socket.io.engine;
+      if (engine.transport.name === 'polling') {
+        engine.once('upgrade', join);
+        joinFallbackTimer = setTimeout(join, 300);
+        return;
+      }
+      join();
+    };
+
+    socket.on('connect', scheduleJoin);
     socket.on('mySocketId', (id) => dispatch({ type: 'SetSocketId', id }));
     socket.on('waitingPhase', (data) => {
-      dispatch({ type: 'WaitingPhase', data, roomName: session.roomName });
+      dispatch({
+        type: 'WaitingPhase',
+        data,
+        roomName: session.roomName,
+        mixLabel: tGameRef.current('mix'),
+      });
       if (data.settings?.theme) applyGameTheme(data.settings.theme);
     });
     socket.on('lobbyUpdate', (data) => {
@@ -265,16 +304,16 @@ export function useGameSocket(roomSlug: string) {
     socket.on('updateGame', (players) => dispatch({ type: 'UpdateGame', players }));
     socket.on('winner', (name) => dispatch({ type: 'Winner', name }));
     socket.on('kickedAfterRound', () => {
-      toast.message('Ronde afgelopen. Je bent terug naar de lobby geplaats.');
+      toast.message(tToastRef.current('roundEndedKicked'));
       clearJoinSession();
-      router.push('/');
+      routerRef.current.push('/');
     });
     socket.on('youAreNowCreator', () => {
       dispatch({ type: 'SetCreator', isCreator: true });
-      toast.message('Je bent nu de host');
+      toast.message(tToastRef.current('youAreHost'));
     });
     socket.on('notEnoughPlayers', (data) => {
-      toast.error(`Nog ${data.min - data.current} speler(s) nodig om te starten`);
+      toast.error(tToastRef.current('notEnoughPlayers', { count: data.min - data.current }));
     });
     socket.on('backToLobby', (data) => {
       const creatorId = data && typeof data === 'object' && 'creatorId' in data ? data.creatorId : null;
@@ -296,25 +335,28 @@ export function useGameSocket(roomSlug: string) {
         countdownStarted,
       });
     });
-    socket.on('errorMessage', (msg) => {
-      if (msg.includes('Fout!')) {
+    socket.on('errorMessage', (payload: SocketErrorPayload) => {
+      const msg = resolveErrorRef.current(payload);
+      if (payload.code === 'wrongAnswer') {
         dispatch({ type: 'AnswerWrong', error: msg });
       } else {
         toast.error(msg);
-        if (msg.includes('gesloten') || msg.includes('vol')) leave();
+        if (payload.code === 'roomClosedByAdmin' || payload.code === 'roomFull') leaveRef.current();
       }
     });
 
     socket.connect();
-    if (socket.connected) join();
+    if (socket.connected) scheduleJoin();
 
     return () => {
-      socket.emit('leaveRoom');
+      if (joinFallbackTimer) clearTimeout(joinFallbackTimer);
+      socket.off('connect', scheduleJoin);
+      if (joined) socket.emit('leaveRoom');
       socket.disconnect();
       socket.removeAllListeners();
       socketRef.current = null;
     };
-  }, [roomSlug, router, leave]);
+  }, [roomSlug, locale]);
 
   return { state, leave, startCountdown, submitAnswer };
 }

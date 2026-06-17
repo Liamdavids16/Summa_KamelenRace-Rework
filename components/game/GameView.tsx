@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Crown, DoorOpen, Loader2, Play, Timer, Users } from 'lucide-react';
 import { ThemedShell } from '@/components/layout/ThemedShell';
 import { QuizPanel } from '@/components/game/QuizPanel';
@@ -20,13 +21,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useGameSocket } from '@/hooks/useGameSocket';
+import { useGameSocket, type GamePhase } from '@/hooks/useGameSocket';
 
 interface GameViewProps {
   roomSlug: string;
 }
 
+const PhaseKeys: Record<GamePhase, string> = {
+  connecting: 'phaseConnecting',
+  waiting: 'phaseWaiting',
+  countdown: 'phaseCountdown',
+  playing: 'phasePlaying',
+  finished: 'phaseFinished',
+};
+
 export function GameView({ roomSlug }: GameViewProps) {
+  const t = useTranslations('game');
+  const tCommon = useTranslations('common');
   const { state, leave, startCountdown, submitAnswer } = useGameSocket(roomSlug);
   const playerCount = state.lobbyPlayers.length || Object.keys(state.players).length;
   const minPct = Math.min(100, (playerCount / state.minPlayers) * 100);
@@ -36,15 +47,15 @@ export function GameView({ roomSlug }: GameViewProps) {
   return (
     <ThemedShell
       maxWidth="md"
-      title={state.roomTitle || 'Kamer'}
-      subtitle="Live sessie"
+      title={state.roomTitle || t('room')}
+      subtitle={t('liveSession')}
       badges={
         <>
           <Badge variant="secondary" className="gap-1">
             <Users className="h-3.5 w-3.5 text-primary" />
-            {playerCount} racers
+            {t('racers', { count: playerCount })}
           </Badge>
-          <Badge variant="outline">{state.phase}</Badge>
+          <Badge variant="outline">{t(PhaseKeys[state.phase])}</Badge>
         </>
       }
       actions={
@@ -52,21 +63,18 @@ export function GameView({ roomSlug }: GameViewProps) {
           <AlertDialogTrigger asChild>
             <Button variant="outlineleave" size="sm" className="gap-1">
               <DoorOpen className="h-4 w-4" />
-              Verlaat
+              {tCommon('leave')}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent variant="borderless">
             <AlertDialogHeader>
-              <AlertDialogTitle>Kamer verlaten?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Weet je zeker dat je de kamer wilt verlaten? Je wordt teruggebracht naar
-                de lobby.
-              </AlertDialogDescription>
+              <AlertDialogTitle>{t('leaveRoomTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('leaveRoomDescription')}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annuleren</AlertDialogCancel>
+              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
               <AlertDialogAction variant="destructiveleavedialog" onClick={leave}>
-                Verlaat
+                {tCommon('leave')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -76,24 +84,24 @@ export function GameView({ roomSlug }: GameViewProps) {
       {state.phase === 'connecting' && (
         <div className="flex items-center gap-2 text-sm text-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Verbinden met kamer...
+          {t('connecting')}
         </div>
       )}
 
       {(state.phase === 'waiting' || state.phase === 'countdown') && (
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Wachtkamer</CardTitle>
+            <CardTitle>{t('waitingRoom')}</CardTitle>
             <CardDescription>
               {state.phase === 'countdown'
-                ? 'De race start zo...'
+                ? t('raceStartsSoon')
                 : state.isCreator
                   ? state.hasCompletedRound
-                    ? 'Nieuwe spelers kunnen joinen. Start de volgende ronde wanneer iedereen er is.'
-                    : 'Jij bent de host. Start zodra iedereen er is.'
+                    ? t('hostStartNext')
+                    : t('hostStartFirst')
                   : state.hasCompletedRound
-                    ? 'Nieuwe spelers kunnen joinen. Wacht tot de host de volgende ronde start.'
-                    : 'Wacht tot de host de race start.'}
+                    ? t('guestWaitNext')
+                    : t('guestWaitFirst')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -121,47 +129,49 @@ export function GameView({ roomSlug }: GameViewProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>
-                    {playerCount} / {state.minPlayers} spelers (max {state.maxPlayers})
+                    {t('playerProgress', {
+                      current: playerCount,
+                      min: state.minPlayers,
+                      max: state.maxPlayers,
+                    })}
                   </span>
                 </div>
                 <Progress value={minPct} />
                 {isLobbyFull ? (
-                  <Button
-                    className="theme-cta gap-2"
-                    onClick={startCountdown}
-                  >
+                  <Button className="theme-cta gap-2" onClick={startCountdown}>
                     <Play className="h-4 w-4" />
-                    Start race
+                    {t('startRace')}
                   </Button>
                 ) : (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button className="theme-cta gap-2">
                         <Play className="h-4 w-4" />
-                        Start race
+                        {t('startRace')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent variant="borderless">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Race starten?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('startRaceTitle')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Weet je zeker dat je wilt starten?{' '}
+                          {t('startRaceConfirm')}{' '}
                           {playerCount < state.minPlayers && (
                             <>
-                              Er {playerCount === 1 ? 'is' : 'zijn'} nu {playerCount}{' '}
-                              {playerCount === 1 ? 'speler' : 'spelers'} (aanbevolen minimum:{' '}
-                              {state.minPlayers}).{' '}
+                              {t('belowMinimum', {
+                                count: playerCount,
+                                min: state.minPlayers,
+                              })}{' '}
                             </>
                           )}
                           {remainingSlots === 1
-                            ? 'Er kan nog 1 persoon joinen.'
-                            : `Er kunnen nog ${remainingSlots} mensen joinen.`}
+                            ? t('oneSlotLeft')
+                            : t('slotsLeft', { count: remainingSlots })}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                        <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                         <AlertDialogAction className="theme-cta" onClick={startCountdown}>
-                          Start race
+                          {t('startRace')}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -174,7 +184,7 @@ export function GameView({ roomSlug }: GameViewProps) {
               <div className="flex flex-col items-center gap-2 py-4">
                 <Timer className="h-6 w-6 text-primary" />
                 <span className="text-5xl font-semibold tabular-nums">{state.countdown}</span>
-                <p className="text-sm text-muted-foreground">seconden tot start</p>
+                <p className="text-sm text-muted-foreground">{t('secondsUntilStart')}</p>
               </div>
             )}
           </CardContent>
@@ -193,7 +203,7 @@ export function GameView({ roomSlug }: GameViewProps) {
           />
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-base">Race</CardTitle>
+              <CardTitle className="text-base">{t('race')}</CardTitle>
             </CardHeader>
             <CardContent>
               <RaceTrack players={state.players} />

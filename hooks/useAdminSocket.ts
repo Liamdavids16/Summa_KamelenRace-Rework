@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { applyTheme } from '@/lib/apply-theme';
 import { normalizeThemeId } from '@/lib/themes';
 import { createSocket, type GameSocket } from '@/lib/socket/client';
+import type { AppLocale } from '@/i18n/routing';
 import type { AdminData, QuestionBank, SafeRooms } from '@/types/game';
 
 export function useAdminSocket() {
@@ -12,6 +14,7 @@ export function useAdminSocket() {
   const [rooms, setRooms] = useState<SafeRooms>({});
   const [questionBank, setQuestionBank] = useState<QuestionBank>({});
   const [settings, setSettings] = useState<AdminData['settings'] | null>(null);
+  const [questionLocale, setQuestionLocale] = useState<AppLocale>('nl');
   const openCategoriesRef = useRef(new Set<string>());
   const socketRef = useRef<GameSocket | null>(null);
 
@@ -19,13 +22,14 @@ export function useAdminSocket() {
     const socket = createSocket();
     socketRef.current = socket;
 
-    socket.on('adminError', (msg) => setLoginError(msg));
+    socket.on('adminError', () => setLoginError('wrongPassword'));
     socket.on('adminData', (data) => {
       setAuthenticated(true);
       setLoginError('');
       setRooms(data.rooms || {});
       if (data.questionBank) setQuestionBank(data.questionBank);
       if (data.settings) setSettings(data.settings);
+      if (data.questionLocale) setQuestionLocale(data.questionLocale as AppLocale);
     });
 
     return () => {
@@ -34,12 +38,12 @@ export function useAdminSocket() {
     };
   }, []);
 
-  const login = (password: string) => {
+  const login = (password: string, locale: AppLocale) => {
     setLoginError('');
     const socket = socketRef.current;
     if (!socket) return;
 
-    const attempt = () => socket.emit('adminLogin', password);
+    const attempt = () => socket.emit('adminLogin', password, locale);
 
     if (socket.connected) {
       attempt();
@@ -48,6 +52,11 @@ export function useAdminSocket() {
 
     socket.once('connect', attempt);
     socket.connect();
+  };
+
+  const setQuestionBankLocale = (locale: AppLocale) => {
+    setQuestionLocale(locale);
+    socketRef.current?.emit('adminSetQuestionLocale', locale);
   };
 
   const saveSettings = (payload: NonNullable<AdminData['settings']>) => {
@@ -72,8 +81,10 @@ export function useAdminSocket() {
     rooms,
     questionBank,
     settings,
+    questionLocale,
     openCategoriesRef,
     login,
+    setQuestionBankLocale,
     saveSettings,
     forceStart,
     deleteRoom,

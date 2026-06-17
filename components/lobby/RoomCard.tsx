@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,9 @@ export function RoomCard({
   initialPlayerName = '',
   onJoin,
 }: RoomCardProps) {
+  const t = useTranslations('lobby');
+  const tCommon = useTranslations('common');
+  const tToast = useTranslations('toast');
   const [open, setOpen] = useState(false);
   const [joinName, setJoinName] = useState(initialPlayerName);
 
@@ -40,7 +44,11 @@ export function RoomCard({
 
   const maxPlayers = room.settings?.maxPlayers ?? 8;
   const statusLabel =
-    room.status === 'playing' ? 'Bezig' : room.countdownStarted ? 'Countdown' : 'Lobby';
+    room.status === 'playing'
+      ? t('statusPlaying')
+      : room.countdownStarted
+        ? t('statusCountdown')
+        : t('statusLobby');
   const full = room.playerCount >= maxPlayers;
   const disabled = room.status === 'playing' || full;
 
@@ -52,7 +60,7 @@ export function RoomCard({
   const handleConfirm = () => {
     const trimmed = joinName.trim();
     if (!trimmed) {
-      toast.error('Vul je naam in');
+      toast.error(tToast('fillName'));
       return;
     }
     onJoin(name, trimmed);
@@ -61,65 +69,60 @@ export function RoomCard({
 
   return (
     <>
-    <Card className="glass-card transition-all hover:shadow-2xl">
-      <CardHeader className="space-y-2 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base font-semibold">{name}</CardTitle>
-          <Badge variant="secondary" className="shrink-0 font-normal">
-            {statusLabel}
-          </Badge>
-        </div>
-        <CardDescription className="line-clamp-2 text-xs">
-          {room.categories.length > 2
-            ? `${room.categories.length} categorieën`
-            : room.categories.join(', ') || 'Geen categorieën'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex items-center justify-between pt-0">
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Users className="h-3.5 w-3.5" />
-          {room.playerCount} / {maxPlayers} spelers
-        </span>
-        <Button
-          size="sm"
-          className="theme-cta"
-          disabled={disabled}
-          onClick={handleOpen}
-        >
-          Deelnemen
-        </Button>
-      </CardContent>
-    </Card>
+      <Card className="glass-card transition-all hover:shadow-2xl">
+        <CardHeader className="space-y-2 pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-base font-semibold">{name}</CardTitle>
+            <Badge variant="secondary" className="shrink-0 font-normal">
+              {statusLabel}
+            </Badge>
+          </div>
+          <CardDescription className="line-clamp-2 text-xs">
+            {room.categories.length > 2
+              ? t('categoryCount', { count: room.categories.length })
+              : room.categories.join(', ') || t('noCategories')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between pt-0">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users className="h-3.5 w-3.5" />
+            {t('playerCount', { current: room.playerCount, max: maxPlayers })}
+          </span>
+          <Button size="sm" className="theme-cta" disabled={disabled} onClick={handleOpen}>
+            {tCommon('join')}
+          </Button>
+        </CardContent>
+      </Card>
 
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent variant="borderless">
-        <DialogHeader>
-          <DialogTitle>Deelnemen aan {name}</DialogTitle>
-          <DialogDescription>Vul je naam in om mee te doen aan deze game.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2 c">
-          <Label htmlFor={`join-name-${name}`}>Naam</Label>
-          <Input
-            id={`join-name-${name}`}
-            placeholder="Jouw naam (bijv. HackerHenk)"
-            maxLength={15}
-            value={joinName}
-            onChange={(e) => setJoinName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleConfirm();
-            }}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Annuleren
-          </Button>
-          <Button className="theme-cta" onClick={handleConfirm} disabled={!joinName.trim()}>
-            Deelnemen
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent variant="borderless">
+          <DialogHeader>
+            <DialogTitle>{t('joinRoom', { name })}</DialogTitle>
+            <DialogDescription>{t('joinRoomDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 c">
+            <Label htmlFor={`join-name-${name}`}>{tCommon('name')}</Label>
+            <Input
+              id={`join-name-${name}`}
+              placeholder={tCommon('namePlaceholder')}
+              maxLength={15}
+              value={joinName}
+              onChange={(e) => setJoinName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirm();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button className="theme-cta" onClick={handleConfirm} disabled={!joinName.trim()}>
+              {tCommon('join')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { Player } from '@/types/game';
 import { Progress } from '@/components/ui/progress';
 
@@ -8,10 +9,11 @@ interface RaceTrackProps {
 }
 
 export function RaceTrack({ players }: RaceTrackProps) {
+  const t = useTranslations('game');
   const list = Object.values(players);
 
   if (list.length === 0) {
-    return <p className="text-sm text-muted-foreground">Wachten op racers...</p>;
+    return <p className="text-sm text-muted-foreground">{t('waitingForRacers')}</p>;
   }
 
   return (

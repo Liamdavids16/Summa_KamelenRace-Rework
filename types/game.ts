@@ -44,6 +44,7 @@ export interface Room {
   creatorId: string;
   countdownStarted: boolean;
   settings: RoomSettings;
+  locale: string;
 }
 
 export interface SafeRoomPlayer {
@@ -102,6 +103,7 @@ export interface AdminData {
   leaderboard: Leaderboard;
   questionBank: QuestionBank;
   settings: GlobalSettings;
+  questionLocale?: string;
 }
 
 export interface JoinRoomPayload {
@@ -109,6 +111,16 @@ export interface JoinRoomPayload {
   roomName: string;
   categories: string[];
   settings?: RoomSettings;
+  locale?: string;
+}
+
+export interface SocketErrorPayload {
+  code: 'raceInProgress' | 'roomFull' | 'wrongAnswer' | 'roomClosedByAdmin';
+  max?: number;
+}
+
+export interface AdminErrorPayload {
+  code: 'wrongPassword';
 }
 
 export interface AdminAddQuestionPayload {

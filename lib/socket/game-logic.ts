@@ -16,8 +16,8 @@ export function getIO(): SocketIOServer {
   return ioInstance;
 }
 
-export function getRandomQuestion(cats: string[]): Question {
-  const bank = refreshQuestionBank();
+export function getRandomQuestion(cats: string[], locale = 'nl'): Question {
+  const bank = refreshQuestionBank(locale);
   let pool: Question[] = [];
   cats.forEach((c) => {
     if (bank[c]) pool = pool.concat(bank[c]);

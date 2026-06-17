@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { createSocket } from '@/lib/socket/client';
 import type { LobbyResponse } from '@/types/api';
 import type { SafeRooms } from '@/types/game';
@@ -17,6 +18,7 @@ export interface LobbyData {
 }
 
 export function useLobbyData(): LobbyData {
+  const t = useTranslations('toast');
   const [rooms, setRooms] = useState<SafeRooms>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [leaderboard, setLeaderboard] = useState<LobbyResponse['leaderboard']>({});
@@ -33,7 +35,7 @@ export function useLobbyData(): LobbyData {
     setLoading(true);
     try {
       const res = await fetch('/api/lobby', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Kon lobbygegevens niet laden');
+      if (!res.ok) throw new Error(t('lobbyLoadFailed'));
 
       const data = (await res.json()) as LobbyResponse;
       setRooms(data.rooms);
@@ -42,15 +44,17 @@ export function useLobbyData(): LobbyData {
       setSettings(data.settings);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Onbekende fout');
+      setError(err instanceof Error ? err.message : t('unknownError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
 
+  useEffect(() => {
     const socket = createSocket();
     socket.on('lobbyRoomsUpdated', (updatedRooms) => {
       setRooms(updatedRooms);
@@ -62,7 +66,7 @@ export function useLobbyData(): LobbyData {
       socket.disconnect();
       socket.removeAllListeners();
     };
-  }, [refresh]);
+  }, []);
 
   return { rooms, categories, leaderboard, settings, loading, error, refresh };
 }

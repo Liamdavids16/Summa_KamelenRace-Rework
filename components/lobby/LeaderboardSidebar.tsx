@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Medal, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ const topRankStyles = [
 ] as const;
 
 export function LeaderboardSidebar({ leaderboard }: LeaderboardSidebarProps) {
+  const t = useTranslations('leaderboard');
   const sorted = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   return (
@@ -35,13 +37,13 @@ export function LeaderboardSidebar({ leaderboard }: LeaderboardSidebarProps) {
       <CardHeader className="pb-3 pt-5">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <Trophy className="h-4 w-4 text-primary" />
-          Top Racers
+          {t('title')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="scrollbar-hidden max-h-80 overflow-y-auto overscroll-y-contain pt-1 [-webkit-overflow-scrolling:touch]">
           {sorted.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nog geen winnaars.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('empty')}</p>
           ) : (
             <ul className="space-y-1.5">
               {sorted.map(([name, wins], index) => {
@@ -84,7 +86,7 @@ export function LeaderboardSidebar({ leaderboard }: LeaderboardSidebarProps) {
                       )}
                     </span>
                     <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
-                      {wins} {wins === 1 ? 'win' : 'wins'}
+                      {t('wins', { count: wins })}
                     </span>
                   </li>
                 );

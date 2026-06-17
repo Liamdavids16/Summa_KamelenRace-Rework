@@ -1,4 +1,5 @@
 import type { Socket } from 'socket.io';
+import { Locales } from '@/i18n/routing';
 import { saveLeaderboard } from '@/lib/leaderboard';
 import { normalizeRoomSettings, roomSettingsFromGlobal } from '@/lib/room-settings';
 import { saveSettings } from '@/lib/settings';
@@ -24,15 +25,33 @@ import {
   getSafeRooms,
 } from './game-logic';
 
+function NormalizeLocale(locale?: string): string {
+  return Locales.includes(locale as (typeof Locales)[number]) ? locale! : 'nl';
+}
+
+function BuildAdminData(locale?: string) {
+  const resolvedLocale = NormalizeLocale(locale);
+  return {
+    rooms: getSafeRooms(),
+    leaderboard: getLeaderboard(),
+    questionBank: refreshQuestionBank(resolvedLocale),
+    settings: globalSettings,
+    questionLocale: resolvedLocale,
+  };
+}
+
+function EmitAdminData(socket: Socket): void {
+  socket.emit('adminData', BuildAdminData(socket.data.adminQuestionLocale));
+}
+
 export function updateAdmin(): void {
-  const bank = refreshQuestionBank();
   getIO()
     .to('admins')
-    .emit('adminData', {
-      rooms: getSafeRooms(),
-      leaderboard: getLeaderboard(),
-      questionBank: bank,
-      settings: globalSettings,
+    .fetchSockets()
+    .then((sockets) => {
+      for (const adminSocket of sockets) {
+        adminSocket.emit('adminData', BuildAdminData(adminSocket.data.adminQuestionLocale));
+      }
     });
 }
 
@@ -117,7 +136,7 @@ export function resetRoom(name: string, autoStartNext = false): void {
 
   for (const id in rooms[name].players) {
     rooms[name].players[id].progress = 0;
-    rooms[name].players[id].currentQuestion = getRandomQuestion(rooms[name].categories);
+    rooms[name].players[id].currentQuestion = getRandomQuestion(rooms[name].categories, rooms[name].locale);
   }
 
   getIO()
@@ -172,8 +191,9 @@ export function registerSocketHandlers(socket: Socket): void {
     socket.emit('roomStatus', !!rooms[name]);
   });
 
-  socket.on('joinRoom', ({ playerName, roomName, categories, settings }) => {
+  socket.on('joinRoom', ({ playerName, roomName, categories, settings, locale }) => {
     const defaultSettings = roomSettingsFromGlobal(globalSettings);
+    const roomLocale = NormalizeLocale(locale);
     if (!rooms[roomName]) {
       const roomSettings = normalizeRoomSettings(settings ?? {}, defaultSettings);
       rooms[roomName] = {
@@ -187,13 +207,17 @@ export function registerSocketHandlers(socket: Socket): void {
         creatorId: socket.id,
         countdownStarted: false,
         settings: roomSettings,
+        locale: roomLocale,
       };
       broadcastRooms();
     }
     const room = rooms[roomName];
-    if (room.status === 'playing') return socket.emit('errorMessage', 'Race al bezig!');
+    if (room.status === 'playing') return socket.emit('errorMessage', { code: 'raceInProgress' });
     if (Object.keys(room.players).length >= room.settings.maxPlayers)
-      return socket.emit('errorMessage', `Kamer is vol! (Max ${room.settings.maxPlayers})`);
+      return socket.emit('errorMessage', {
+        code: 'roomFull',
+        max: room.settings.maxPlayers,
+      });
 
     socket.join(roomName);
     socket.data.roomId = roomName;
@@ -202,7 +226,7 @@ export function registerSocketHandlers(socket: Socket): void {
       name: playerName,
       progress: 0,
       color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
-      currentQuestion: getRandomQuestion(room.categories),
+      currentQuestion: getRandomQuestion(room.categories, room.locale),
     };
 
     const isCreator = room.creatorId === socket.id;
@@ -254,30 +278,31 @@ export function registerSocketHandlers(socket: Socket): void {
           );
         }
       } else {
-        p.currentQuestion = getRandomQuestion(room.categories);
+        p.currentQuestion = getRandomQuestion(room.categories, room.locale);
         socket.emit('newQuestion', p.currentQuestion);
       }
     } else {
-      socket.emit('errorMessage', 'Fout! Strafseconde... Je krijgt een nieuwe vraag.');
-      p.currentQuestion = getRandomQuestion(room.categories);
+      socket.emit('errorMessage', { code: 'wrongAnswer' });
+      p.currentQuestion = getRandomQuestion(room.categories, room.locale);
       setTimeout(() => socket.emit('newQuestion', p.currentQuestion), 1500);
     }
     if (roomId) getIO().to(roomId).emit('updateGame', room.players);
   });
 
-  socket.on('adminLogin', (pass) => {
+  socket.on('adminLogin', (pass, locale) => {
     if (AdminPasswords.includes(pass)) {
-      const questionBank = refreshQuestionBank();
+      socket.data.adminQuestionLocale = NormalizeLocale(locale);
       socket.join('admins');
-      socket.emit('adminData', {
-        rooms: getSafeRooms(),
-        leaderboard: getLeaderboard(),
-        questionBank,
-        settings: globalSettings,
-      });
+      EmitAdminData(socket);
     } else {
-      socket.emit('adminError', 'Fout wachtwoord!');
+      socket.emit('adminError', { code: 'wrongPassword' });
     }
+  });
+
+  socket.on('adminSetQuestionLocale', (locale) => {
+    if (!socket.rooms.has('admins')) return;
+    socket.data.adminQuestionLocale = NormalizeLocale(locale);
+    EmitAdminData(socket);
   });
 
   socket.on('adminForceStart', (name) => {
@@ -297,7 +322,7 @@ export function registerSocketHandlers(socket: Socket): void {
     if (rooms[name]) {
       ClearRoundEndTimer(name);
       if (rooms[name].timerId) clearInterval(rooms[name].timerId);
-      getIO().to(name).emit('errorMessage', 'Kamer gesloten door admin.');
+      getIO().to(name).emit('errorMessage', { code: 'roomClosedByAdmin' });
       delete rooms[name];
       broadcastRooms();
       updateAdmin();
@@ -330,47 +355,51 @@ export function registerSocketHandlers(socket: Socket): void {
   });
 
   socket.on('adminAddCategory', (catName) => {
-    refreshQuestionBank();
-    const questionBank = getQuestionBank();
+    const locale = NormalizeLocale(socket.data.adminQuestionLocale);
+    refreshQuestionBank(locale);
+    const questionBank = getQuestionBank(locale);
     if (!questionBank[catName]) {
       questionBank[catName] = [];
-      setQuestionBank(questionBank);
-      saveQuestionsToFile(questionBank);
+      setQuestionBank(questionBank, locale);
+      saveQuestionsToFile(questionBank, locale);
       getIO().emit('availableCategories', Object.keys(questionBank));
       updateAdmin();
     }
   });
 
   socket.on('adminDeleteCategory', (catName) => {
-    refreshQuestionBank();
-    const questionBank = getQuestionBank();
+    const locale = NormalizeLocale(socket.data.adminQuestionLocale);
+    refreshQuestionBank(locale);
+    const questionBank = getQuestionBank(locale);
     if (questionBank[catName]) {
       delete questionBank[catName];
-      setQuestionBank(questionBank);
-      saveQuestionsToFile(questionBank);
+      setQuestionBank(questionBank, locale);
+      saveQuestionsToFile(questionBank, locale);
       getIO().emit('availableCategories', Object.keys(questionBank));
       updateAdmin();
     }
   });
 
   socket.on('adminAddQuestion', ({ category, questionObj }) => {
-    refreshQuestionBank();
-    const questionBank = getQuestionBank();
+    const locale = NormalizeLocale(socket.data.adminQuestionLocale);
+    refreshQuestionBank(locale);
+    const questionBank = getQuestionBank(locale);
     if (questionBank[category]) {
       questionBank[category].push(questionObj);
-      setQuestionBank(questionBank);
-      saveQuestionsToFile(questionBank);
+      setQuestionBank(questionBank, locale);
+      saveQuestionsToFile(questionBank, locale);
       updateAdmin();
     }
   });
 
   socket.on('adminDeleteQuestion', ({ category, index }) => {
-    refreshQuestionBank();
-    const questionBank = getQuestionBank();
+    const locale = NormalizeLocale(socket.data.adminQuestionLocale);
+    refreshQuestionBank(locale);
+    const questionBank = getQuestionBank(locale);
     if (questionBank[category] && questionBank[category][index]) {
       questionBank[category].splice(index, 1);
-      setQuestionBank(questionBank);
-      saveQuestionsToFile(questionBank);
+      setQuestionBank(questionBank, locale);
+      saveQuestionsToFile(questionBank, locale);
       updateAdmin();
     }
   });

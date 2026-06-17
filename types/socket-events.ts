@@ -2,6 +2,7 @@ import type {
   AdminAddQuestionPayload,
   AdminData,
   AdminDeleteQuestionPayload,
+  AdminErrorPayload,
   AdminUpdateSettingsPayload,
   BackToLobbyData,
   GlobalSettings,
@@ -12,6 +13,7 @@ import type {
   Question,
   Room,
   SafeRooms,
+  SocketErrorPayload,
   WaitingPhaseData,
 } from './game';
 
@@ -36,9 +38,9 @@ export interface ServerToClientEvents {
   backToLobby: (data: BackToLobbyData | number) => void;
   youAreNowCreator: () => void;
   notEnoughPlayers: (data: NotEnoughPlayersData) => void;
-  errorMessage: (msg: string) => void;
+  errorMessage: (payload: SocketErrorPayload) => void;
   adminData: (data: AdminData) => void;
-  adminError: (msg: string) => void;
+  adminError: (payload: AdminErrorPayload) => void;
 }
 
 export interface ClientToServerEvents {
@@ -47,7 +49,8 @@ export interface ClientToServerEvents {
   creatorStartCountdown: () => void;
   submitAnswer: (idx: number) => void;
   leaveRoom: () => void;
-  adminLogin: (pass: string) => void;
+  adminLogin: (pass: string, locale?: string) => void;
+  adminSetQuestionLocale: (locale: string) => void;
   adminForceStart: (name: string) => void;
   adminDeleteRoom: (name: string) => void;
   adminResetLeaderboard: () => void;
@@ -64,4 +67,5 @@ export interface InterServerEvents {
 
 export interface SocketData {
   roomId?: string;
+  adminQuestionLocale?: string;
 }

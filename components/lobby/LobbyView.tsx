@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Layers, Loader2, RefreshCw, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemedShell } from '@/components/layout/ThemedShell';
@@ -25,13 +26,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLobbyData } from '@/hooks/useLobbyData';
+import { useThemeOptions } from '@/hooks/useActiveTheme';
 import { saveJoinSession } from '@/lib/join-session';
 import { roomSettingsFromGlobal } from '@/lib/room-settings';
-import { ThemeLabels, Themes, normalizeThemeId, type ThemeId } from '@/lib/themes';
+import { normalizeThemeId, type ThemeId } from '@/lib/themes';
 import type { RoomSettings } from '@/types/game';
 
 export function LobbyView() {
   const router = useRouter();
+  const t = useTranslations('lobby');
+  const tCommon = useTranslations('common');
+  const tToast = useTranslations('toast');
+  const themeOptions = useThemeOptions();
   const { rooms, categories, leaderboard, settings, loading, error, refresh } = useLobbyData();
   const [playerName, setPlayerName] = useState('');
   const [roomName, setRoomName] = useState('');
@@ -113,18 +119,18 @@ export function LobbyView() {
     const name = playerName.trim();
     const room = roomName.trim();
     if (!name || !room) {
-      toast.error('Vul een naam en kamernaam in');
+      toast.error(tToast('fillNameAndRoom'));
       return;
     }
 
     const cats = roomExists ? [] : Array.from(selectedCategories);
     if (!roomExists && cats.length === 0) {
-      toast.error('Kies minimaal één categorie');
+      toast.error(tToast('pickCategory'));
       return;
     }
 
     if (!roomExists && minPlayers > maxPlayers) {
-      toast.error('Min. spelers mag niet groter zijn dan max. spelers');
+      toast.error(tToast('minGreaterThanMax'));
       return;
     }
 
@@ -137,13 +143,13 @@ export function LobbyView() {
     router.push(`/room/${encodeURIComponent(room)}`);
   };
 
-  const handleQuickJoin = (roomName: string, joinPlayerName: string) => {
+  const handleQuickJoin = (joinRoomName: string, joinPlayerName: string) => {
     saveJoinSession({
       playerName: joinPlayerName.trim(),
-      roomName,
+      roomName: joinRoomName,
       categories: [],
     });
-    router.push(`/room/${encodeURIComponent(roomName)}`);
+    router.push(`/room/${encodeURIComponent(joinRoomName)}`);
   };
 
   return (
@@ -152,11 +158,11 @@ export function LobbyView() {
         <>
           <Badge variant="secondary" className="h-8 gap-1.5 rounded-full px-3 font-normal">
             <Users className="h-3.5 w-3.5 text-primary" />
-            {roomNames.length} kamers
+            {t('roomCount', { count: roomNames.length })}
           </Badge>
           <Badge variant="secondary" className="h-8 gap-1.5 rounded-full px-3 font-normal">
             <Layers className="h-3.5 w-3.5 text-primary" />
-            {categories.length} categorieën
+            {t('categoryCount', { count: categories.length })}
           </Badge>
         </>
       }
@@ -169,7 +175,7 @@ export function LobbyView() {
           onClick={() => void handleRefresh()}
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          Vernieuwen
+          {tCommon('refresh')}
         </Button>
       }
     >
@@ -185,18 +191,16 @@ export function LobbyView() {
         <div className="space-y-6">
           <Card className="glass-card">
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Start een sessie</CardTitle>
-              <CardDescription>
-                Nieuwe kamer aanmaken of deelnemen aan een lopende game.
-              </CardDescription>
+              <CardTitle className="text-xl">{t('startSession')}</CardTitle>
+              <CardDescription>{t('startSessionDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-2 sm:grid-cols-1">
                 <div className="space-y-2">
-                  <Label htmlFor="playerName">Naam</Label>
+                  <Label htmlFor="playerName">{tCommon('name')}</Label>
                   <Input
                     id="playerName"
-                    placeholder="Jouw naam (bijv. HackerHenk)"
+                    placeholder={tCommon('namePlaceholder')}
                     maxLength={15}
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
@@ -205,10 +209,10 @@ export function LobbyView() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="roomName">Kamernaam</Label>
+                <Label htmlFor="roomName">{t('roomName')}</Label>
                 <Input
                   id="roomName"
-                  placeholder="Typ hier je nieuwe kamernaam..."
+                  placeholder={t('roomNamePlaceholder')}
                   value={roomName}
                   onChange={(e) => {
                     setRoomName(e.target.value);
@@ -219,13 +223,11 @@ export function LobbyView() {
                 {checkingRoom && (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Loader2 className="h-3 w-3 animate-spin" />
-                    Kamer controleren...
+                    {t('checkingRoom')}
                   </p>
                 )}
                 {roomExists && !checkingRoom && (
-                  <p className="text-xs text-muted-foreground">
-                    Bestaande kamer — categorieën worden overgenomen.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('existingRoom')}</p>
                 )}
               </div>
 
@@ -240,7 +242,7 @@ export function LobbyView() {
                       onClick={() => setSettingsOpen((open) => !open)}
                       aria-expanded={settingsOpen}
                     >
-                      <span>Sessie-instellingen</span>
+                      <span>{t('sessionSettings')}</span>
                       <ChevronDown
                         className={`h-4 w-4 shrink-0 transition-transform ${settingsOpen ? '' : '-rotate-90'}`}
                       />
@@ -249,16 +251,16 @@ export function LobbyView() {
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="sessionTheme" className="text-xs text-muted-foreground">
-                            Thema
+                            {tCommon('theme')}
                           </Label>
                           <Select value={theme} onValueChange={(v) => setTheme(v as ThemeId)}>
                             <SelectTrigger id="sessionTheme">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent variant="borderless">
-                              {Themes.map((t) => (
-                                <SelectItem key={t} value={t}>
-                                  {ThemeLabels[t]}
+                              {themeOptions.map((item) => (
+                                <SelectItem key={item.id} value={item.id}>
+                                  {item.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -267,7 +269,7 @@ export function LobbyView() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="minPlayers" className="text-xs text-muted-foreground">
-                              Min. spelers
+                              {tCommon('minPlayers')}
                             </Label>
                             <NumberInput
                               id="minPlayers"
@@ -279,7 +281,7 @@ export function LobbyView() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="maxPlayers" className="text-xs text-muted-foreground">
-                              Max. spelers
+                              {tCommon('maxPlayers')}
                             </Label>
                             <NumberInput
                               id="maxPlayers"
@@ -296,7 +298,7 @@ export function LobbyView() {
                               htmlFor="questionsPerRound"
                               className="text-xs text-muted-foreground"
                             >
-                              Vragen per ronde
+                              {tCommon('questionsPerRound')}
                             </Label>
                             <NumberInput
                               id="questionsPerRound"
@@ -311,7 +313,7 @@ export function LobbyView() {
                               htmlFor="countdownSeconds"
                               className="text-xs text-muted-foreground"
                             >
-                              Countdown (sec)
+                              {t('countdownSeconds')}
                             </Label>
                             <NumberInput
                               id="countdownSeconds"
@@ -328,7 +330,7 @@ export function LobbyView() {
                               htmlFor="autoStartDelaySeconds"
                               className="text-xs text-muted-foreground"
                             >
-                              Automatisch herstarten na (sec)
+                              {t('autoRestartSeconds')}
                             </Label>
                             <NumberInput
                               id="autoStartDelaySeconds"
@@ -344,7 +346,7 @@ export function LobbyView() {
                             htmlFor="autoKickAfterRound"
                             className="cursor-pointer text-sm leading-tight"
                           >
-                            Spelers automatisch verwijderen na ronde (host blijft)
+                            {t('autoKickAfterRound')}
                           </Label>
                           <Switch
                             id="autoKickAfterRound"
@@ -358,7 +360,7 @@ export function LobbyView() {
                   <Separator />
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <Label>Kies Categorieën</Label>
+                      <Label>{t('chooseCategories')}</Label>
                       <div className="flex gap-1">
                         <Button
                           type="button"
@@ -367,7 +369,7 @@ export function LobbyView() {
                           className="h-7 text-xs"
                           onClick={() => setSelectedCategories(new Set(categories))}
                         >
-                          Alles
+                          {t('selectAll')}
                         </Button>
                         <Button
                           type="button"
@@ -376,7 +378,7 @@ export function LobbyView() {
                           className="h-7 text-xs"
                           onClick={() => setSelectedCategories(new Set())}
                         >
-                          Geen
+                          {t('selectNone')}
                         </Button>
                       </div>
                     </div>
@@ -385,7 +387,7 @@ export function LobbyView() {
                         {categories.map((cat) => (
                           <label
                             key={cat}
-                              className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent"
+                            className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent"
                           >
                             <Checkbox
                               checked={selectedCategories.has(cat)}
@@ -399,7 +401,10 @@ export function LobbyView() {
                       </div>
                     </ScrollArea>
                     <p className="text-xs text-muted-foreground">
-                      {selectedCategories.size} van {categories.length} geselecteerd
+                      {t('selectedCount', {
+                        selected: selectedCategories.size,
+                        total: categories.length,
+                      })}
                     </p>
                   </div>
                 </>
@@ -410,21 +415,21 @@ export function LobbyView() {
                 onClick={handleJoin}
                 disabled={loading || !playerName.trim() || !roomName.trim()}
               >
-                Ga naar kamer
+                {t('goToRoom')}
               </Button>
             </CardContent>
           </Card>
 
           <section className="space-y-3">
-            <h2 className="page-heading text-lg">Beschikbare games</h2>
+            <h2 className="page-heading text-lg">{t('availableGames')}</h2>
             {loading ? (
               <div className="glass-panel flex items-center gap-2 px-4 py-8 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Laden...
+                {tCommon('loading')}
               </div>
             ) : roomNames.length === 0 ? (
               <div className="glass-panel px-4 py-8 text-sm text-muted-foreground">
-                Geen actieve kamers. Start de eerste sessie hierboven.
+                {t('noActiveRooms')}
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">

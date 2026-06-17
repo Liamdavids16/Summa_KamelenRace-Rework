@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
 import { ExternalLink, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -20,18 +21,35 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ThemedShell } from '@/components/layout/ThemedShell';
+import { useThemeOptions } from '@/hooks/useActiveTheme';
 import { useAdminSocket } from '@/hooks/useAdminSocket';
-import { ThemeLabels, Themes, normalizeThemeId, type ThemeId } from '@/lib/themes';
+import { Locales, type AppLocale } from '@/i18n/routing';
+import { normalizeThemeId, type ThemeId } from '@/lib/themes';
 import type { Question } from '@/types/game';
 
+const LocaleLabels: Record<AppLocale, string> = {
+  nl: 'NL',
+  en: 'EN',
+  fr: 'FR',
+  de: 'DE',
+};
+
 export function AdminDashboard() {
+  const locale = useLocale() as AppLocale;
+  const t = useTranslations('admin');
+  const tCommon = useTranslations('common');
+  const tToast = useTranslations('toast');
+  const tErrors = useTranslations('errors');
+  const themeOptions = useThemeOptions();
   const {
     authenticated,
     loginError,
     rooms,
     questionBank,
     settings,
+    questionLocale,
     login,
+    setQuestionBankLocale,
     saveSettings,
     forceStart,
     deleteRoom,
@@ -67,24 +85,24 @@ export function AdminDashboard() {
     setQuestionsPerRound(settings.questionsPerRound);
   }, [settings]);
 
-  const handleLogin = () => login(password);
+  const handleLogin = () => login(password, locale);
 
   const handleSaveSettings = () => {
     if (minPlayers > maxPlayers) {
-      toast.error('Min. spelers mag niet groter zijn dan max. spelers');
+      toast.error(tToast('minGreaterThanMax'));
       return;
     }
     saveSettings({ theme, minPlayers, maxPlayers, questionsPerRound });
-    toast.success('Instellingen opgeslagen');
+    toast.success(t('settingsSaved'));
   };
 
   const promptQuestion = (category: string) => {
-    const q = prompt('Vraag:');
+    const q = prompt(t('promptQuestion'));
     if (!q) return;
-    const o1 = prompt('Goed antwoord (optie 1):');
-    const o2 = prompt('Fout antwoord 2:');
-    const o3 = prompt('Fout antwoord 3:');
-    const o4 = prompt('Fout antwoord 4:');
+    const o1 = prompt(t('promptCorrect'));
+    const o2 = prompt(t('promptWrong2'));
+    const o3 = prompt(t('promptWrong3'));
+    const o4 = prompt(t('promptWrong4'));
     if (q && o1 && o2 && o3 && o4) {
       const questionObj: Question = { q, options: [o1, o2, o3, o4], answer: 0 };
       addQuestion(category, questionObj);
@@ -99,12 +117,12 @@ export function AdminDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Admin login
+                {t('loginTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="adminPass">Wachtwoord</Label>
+                <Label htmlFor="adminPass">{t('password')}</Label>
                 <Input
                   id="adminPass"
                   type="password"
@@ -113,9 +131,11 @@ export function AdminDashboard() {
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                 />
               </div>
-              {loginError && <p className="text-sm text-destructive">{loginError}</p>}
+              {loginError && (
+                <p className="text-sm text-destructive">{tErrors('wrongPassword')}</p>
+              )}
               <Button className="theme-cta w-full" onClick={handleLogin}>
-                Inloggen
+                {t('login')}
               </Button>
             </CardContent>
           </Card>
@@ -126,24 +146,24 @@ export function AdminDashboard() {
 
   return (
     <ThemedShell
-      title="Kamelenrace admin"
-      subtitle="Beheer"
+      title={t('title')}
+      subtitle={t('subtitle')}
       maxWidth="lg"
       actions={
         <Button variant="outline" asChild>
           <Link href="/" target="_blank">
             <ExternalLink className="h-4 w-4" />
-            Speler scherm
+            {t('playerScreen')}
           </Link>
         </Button>
       }
     >
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          ['Kamers', summary.rooms],
-          ['Racers', summary.players],
-          ['Categorieën', summary.categories],
-          ['Vragen', summary.questions],
+          [t('statRooms'), summary.rooms],
+          [t('statRacers'), summary.players],
+          [t('statCategories'), summary.categories],
+          [t('statQuestions'), summary.questions],
         ].map(([label, value]) => (
           <Card key={label as string} className="glass-card">
             <CardContent className="pt-6">
@@ -156,28 +176,28 @@ export function AdminDashboard() {
 
       <Tabs defaultValue="settings">
         <TabsList>
-          <TabsTrigger value="settings">Instellingen</TabsTrigger>
-          <TabsTrigger value="rooms">Kamers</TabsTrigger>
-          <TabsTrigger value="cms">Vragenbank</TabsTrigger>
+          <TabsTrigger value="settings">{t('tabSettings')}</TabsTrigger>
+          <TabsTrigger value="rooms">{t('tabRooms')}</TabsTrigger>
+          <TabsTrigger value="cms">{t('tabCms')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings" className="mt-4">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Globale instellingen</CardTitle>
-              <CardDescription>Direct actief voor alle spelers.</CardDescription>
+              <CardTitle>{t('globalSettings')}</CardTitle>
+              <CardDescription>{t('globalSettingsDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:max-w-md">
               <div className="space-y-2">
-                <Label>Thema</Label>
+                <Label>{tCommon('theme')}</Label>
                 <Select value={theme} onValueChange={(v) => setTheme(v as ThemeId)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Themes.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {ThemeLabels[t]}
+                    {themeOptions.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -185,26 +205,16 @@ export function AdminDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Min. spelers</Label>
-                  <NumberInput
-                    min={1}
-                    max={20}
-                    value={minPlayers}
-                    onChange={setMinPlayers}
-                  />
+                  <Label>{tCommon('minPlayers')}</Label>
+                  <NumberInput min={1} max={20} value={minPlayers} onChange={setMinPlayers} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Max. spelers</Label>
-                  <NumberInput
-                    min={1}
-                    max={20}
-                    value={maxPlayers}
-                    onChange={setMaxPlayers}
-                  />
+                  <Label>{tCommon('maxPlayers')}</Label>
+                  <NumberInput min={1} max={20} value={maxPlayers} onChange={setMaxPlayers} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Vragen per ronde</Label>
+                <Label>{tCommon('questionsPerRound')}</Label>
                 <NumberInput
                   min={1}
                   max={100}
@@ -212,7 +222,9 @@ export function AdminDashboard() {
                   onChange={setQuestionsPerRound}
                 />
               </div>
-              <Button className="theme-cta" onClick={handleSaveSettings}>Opslaan</Button>
+              <Button className="theme-cta" onClick={handleSaveSettings}>
+                {tCommon('save')}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -220,11 +232,11 @@ export function AdminDashboard() {
         <TabsContent value="rooms" className="mt-4">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Actieve kamers</CardTitle>
+              <CardTitle>{t('activeRooms')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {Object.keys(rooms).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Geen actieve kamers.</p>
+                <p className="text-sm text-muted-foreground">{t('noActiveRooms')}</p>
               ) : (
                 Object.entries(rooms).map(([name, room]) => (
                   <div
@@ -234,23 +246,23 @@ export function AdminDashboard() {
                     <div>
                       <p className="font-medium">{name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {room.playerCount} spelers · {room.status}
+                        {t('roomPlayers', { count: room.playerCount, status: room.status })}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       {room.status === 'waiting' && (
                         <Button size="sm" variant="secondary" onClick={() => forceStart(name)}>
-                          Start nu
+                          {t('forceStart')}
                         </Button>
                       )}
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => {
-                          if (confirm(`Kamer ${name} sluiten?`)) deleteRoom(name);
+                          if (confirm(t('closeRoomConfirm', { name }))) deleteRoom(name);
                         }}
                       >
-                        Sluiten
+                        {t('closeRoom')}
                       </Button>
                     </div>
                   </div>
@@ -260,10 +272,10 @@ export function AdminDashboard() {
               <Button
                 variant="destructive"
                 onClick={() => {
-                  if (confirm('Leaderboard resetten?')) resetLeaderboard();
+                  if (confirm(t('resetLeaderboardConfirm'))) resetLeaderboard();
                 }}
               >
-                Reset leaderboard
+                {t('resetLeaderboard')}
               </Button>
             </CardContent>
           </Card>
@@ -271,20 +283,41 @@ export function AdminDashboard() {
 
         <TabsContent value="cms" className="mt-4">
           <Card className="glass-card">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Vragenbank</CardTitle>
-                <CardDescription>CMS voor categorieën en vragen.</CardDescription>
+                <CardTitle>{t('questionBank')}</CardTitle>
+                <CardDescription>{t('questionBankDescription')}</CardDescription>
               </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  const name = prompt('Nieuwe categorienaam:');
-                  if (name) addCategory(name);
-                }}
-              >
-                Categorie toevoegen
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">{t('questionBankLocale')}</Label>
+                  <Select
+                    value={questionLocale}
+                    onValueChange={(v) => setQuestionBankLocale(v as AppLocale)}
+                  >
+                    <SelectTrigger className="w-[5.5rem]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Locales.map((item) => (
+                        <SelectItem key={item} value={item}>
+                          {LocaleLabels[item]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  size="sm"
+                  className="mt-5 sm:mt-0"
+                  onClick={() => {
+                    const name = prompt(t('newCategoryPrompt'));
+                    if (name) addCategory(name);
+                  }}
+                >
+                  {t('addCategory')}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {Object.entries(questionBank).map(([category, questions]) => {
@@ -315,17 +348,17 @@ export function AdminDashboard() {
                       <div className="space-y-2 border-t px-4 py-3">
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => promptQuestion(category)}>
-                            Vraag toevoegen
+                            {t('addQuestion')}
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => {
-                              if (confirm(`Categorie ${category} verwijderen?`))
+                              if (confirm(t('deleteCategoryConfirm', { name: category })))
                                 deleteCategory(category);
                             }}
                           >
-                            Categorie verwijderen
+                            {t('deleteCategory')}
                           </Button>
                         </div>
                         <ul className="space-y-2">
@@ -339,11 +372,11 @@ export function AdminDashboard() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  if (confirm('Vraag verwijderen?'))
+                                  if (confirm(t('deleteQuestionConfirm')))
                                     deleteQuestion(category, index);
                                 }}
                               >
-                                Verwijder
+                                {tCommon('delete')}
                               </Button>
                             </li>
                           ))}

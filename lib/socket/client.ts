@@ -4,5 +4,9 @@ import type { ClientToServerEvents, ServerToClientEvents } from '@/types/socket-
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export function createSocket(): GameSocket {
-  return io({ path: '/socket.io', autoConnect: false });
+  return io({
+    path: '/socket.io',
+    autoConnect: false,
+    transports: ['websocket', 'polling'],
+  });
 }

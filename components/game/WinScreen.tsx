@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import confetti from 'canvas-confetti';
 import { Crown, Medal, Sparkles, Trophy } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -134,6 +135,7 @@ function PodiumSpot({
 }
 
 export function WinScreen({ winnerName, players, autoStartDelaySeconds }: WinScreenProps) {
+  const t = useTranslations('win');
   const ranked = Object.values(players).sort((a, b) => b.progress - a.progress);
   const first = ranked[0];
   const second = ranked[1];
@@ -164,8 +166,10 @@ export function WinScreen({ winnerName, players, autoStartDelaySeconds }: WinScr
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/30">
             <Sparkles className="h-7 w-7 text-primary" />
           </div>
-          <CardTitle className="text-2xl sm:text-3xl">Gefeliciteerd, {winnerName}!</CardTitle>
-          <CardDescription>Race afgelopen — dit is het podium</CardDescription>
+          <CardTitle className="text-2xl sm:text-3xl">
+            {t('congratulations', { name: winnerName })}
+          </CardTitle>
+          <CardDescription>{t('podium')}</CardDescription>
         </CardHeader>
 
         <CardContent className="relative space-y-6">
@@ -182,10 +186,7 @@ export function WinScreen({ winnerName, players, autoStartDelaySeconds }: WinScr
           {ranked.length > 3 && (
             <ul className="space-y-2 rounded-xl border border-border/50 bg-muted/30 p-3">
               {ranked.slice(3).map((player, index) => (
-                <li
-                  key={player.id}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
+                <li key={player.id} className="flex items-center justify-between gap-3 text-sm">
                   <span className="flex items-center gap-2">
                     <span className="text-muted-foreground">{index + 4}.</span>
                     <span
@@ -203,15 +204,9 @@ export function WinScreen({ winnerName, players, autoStartDelaySeconds }: WinScr
           )}
 
           <p className="text-center text-sm text-muted-foreground">
-            {secondsLeft > 0 ? (
-              <>
-                De volgende ronde start over{' '}
-                <span className="font-semibold tabular-nums text-foreground">{secondsLeft}</span>{' '}
-                {secondsLeft === 1 ? 'seconde' : 'seconden'} 
-              </>
-            ) : (
-              'Terug naar de wachtkamer...'
-            )}
+            {secondsLeft > 0
+              ? t('nextRoundIn', { count: secondsLeft })
+              : t('backToWaitingRoom')}
           </p>
         </CardContent>
       </Card>
