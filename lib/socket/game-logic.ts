@@ -48,6 +48,7 @@ export function getSafeRooms(): SafeRooms {
       countdown: rooms[id].countdown,
       countdownStarted: rooms[id].countdownStarted,
       creatorId: rooms[id].creatorId,
+      settings: rooms[id].settings,
       players: Object.values(rooms[id].players).map((p) => ({
         name: p.name,
         progress: p.progress,

@@ -13,6 +13,14 @@ export interface GlobalSettings {
   questionsPerRound: number;
 }
 
+export interface RoomSettings {
+  theme: string;
+  minPlayers: number;
+  maxPlayers: number;
+  questionsPerRound: number;
+  countdownSeconds: number;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -32,6 +40,7 @@ export interface Room {
   timerId: ReturnType<typeof setInterval> | null;
   creatorId: string;
   countdownStarted: boolean;
+  settings: RoomSettings;
 }
 
 export interface SafeRoomPlayer {
@@ -47,6 +56,7 @@ export interface SafeRoom {
   creatorId: string;
   players: SafeRoomPlayer[];
   playerCount: number;
+  settings: RoomSettings;
 }
 
 export type SafeRooms = Record<string, SafeRoom>;
@@ -64,6 +74,7 @@ export interface WaitingPhaseData {
   categories: string[];
   isCreator: boolean;
   countdownStarted: boolean;
+  settings: RoomSettings;
 }
 
 export interface LobbyUpdateData {
@@ -93,6 +104,7 @@ export interface JoinRoomPayload {
   playerName: string;
   roomName: string;
   categories: string[];
+  settings?: RoomSettings;
 }
 
 export interface AdminAddQuestionPayload {

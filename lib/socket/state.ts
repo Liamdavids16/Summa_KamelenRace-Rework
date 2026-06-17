@@ -2,7 +2,7 @@ import type { GlobalSettings, Leaderboard, Room } from '@/types/game';
 import { loadLeaderboard } from '@/lib/leaderboard';
 import { loadSettings } from '@/lib/settings';
 
-export const ADMIN_PASSWORDS = ['awooDestiny23@!', 'Summa_Desi', 'Lynxies'];
+export const AdminPasswords = ['awooDestiny23@!', 'Summa_Desi', 'Lynxies'];
 
 const globalStore = globalThis as typeof globalThis & {
   __kamelenRooms?: Record<string, Room>;

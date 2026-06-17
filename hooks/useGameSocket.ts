@@ -38,22 +38,22 @@ interface GameState {
 }
 
 type GameAction =
-  | { type: 'SET_SOCKET_ID'; id: string }
-  | { type: 'SET_SETTINGS'; settings: GlobalSettings }
-  | { type: 'WAITING_PHASE'; data: WaitingPhaseData; roomName: string }
-  | { type: 'LOBBY_UPDATE'; players: LobbyPlayer[]; countdownStarted: boolean; creatorId: string }
-  | { type: 'COUNTDOWN_STARTED'; tijd: number }
-  | { type: 'TIMER_UPDATE'; tijd: number }
-  | { type: 'GAME_STARTED' }
-  | { type: 'NEW_QUESTION'; question: Question }
-  | { type: 'SELECT_ANSWER'; index: number }
-  | { type: 'ANSWER_WRONG'; error: string }
-  | { type: 'LOCK_QUESTION' }
-  | { type: 'UPDATE_GAME'; players: Record<string, Player> }
-  | { type: 'WINNER'; name: string }
-  | { type: 'BACK_TO_LOBBY'; tijd: number; creatorId: string | null; mySocketId: string | null }
-  | { type: 'SET_CREATOR'; isCreator: boolean }
-  | { type: 'SET_ERROR'; error: string | null };
+  | { type: 'SetSocketId'; id: string }
+  | { type: 'SetSettings'; settings: GlobalSettings }
+  | { type: 'WaitingPhase'; data: WaitingPhaseData; roomName: string }
+  | { type: 'LobbyUpdate'; players: LobbyPlayer[]; countdownStarted: boolean; creatorId: string }
+  | { type: 'CountdownStarted'; tijd: number }
+  | { type: 'TimerUpdate'; tijd: number }
+  | { type: 'GameStarted' }
+  | { type: 'NewQuestion'; question: Question }
+  | { type: 'SelectAnswer'; index: number }
+  | { type: 'AnswerWrong'; error: string }
+  | { type: 'LockQuestion' }
+  | { type: 'UpdateGame'; players: Record<string, Player> }
+  | { type: 'Winner'; name: string }
+  | { type: 'BackToLobby'; tijd: number; creatorId: string | null; mySocketId: string | null }
+  | { type: 'SetCreator'; isCreator: boolean }
+  | { type: 'SetError'; error: string | null };
 
 const initialState: GameState = {
   phase: 'connecting',
@@ -78,20 +78,21 @@ const initialState: GameState = {
 
 function reducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case 'SET_SOCKET_ID':
+    case 'SetSocketId':
       return { ...state, mySocketId: action.id };
-    case 'SET_SETTINGS':
+    case 'SetSettings':
       return {
         ...state,
         settings: action.settings,
         minPlayers: action.settings.minPlayers,
         maxPlayers: action.settings.maxPlayers,
       };
-    case 'WAITING_PHASE': {
+    case 'WaitingPhase': {
       const catText =
         action.data.categories.length > 2
           ? 'Mix'
           : action.data.categories.join(' & ');
+      const roomSettings = action.data.settings;
       return {
         ...state,
         phase: action.data.countdownStarted ? 'countdown' : 'waiting',
@@ -101,9 +102,17 @@ function reducer(state: GameState, action: GameAction): GameState {
         roomTitle: `${action.roomName}${catText ? ` (${catText})` : ''}`,
         winnerName: null,
         question: null,
+        minPlayers: roomSettings.minPlayers,
+        maxPlayers: roomSettings.maxPlayers,
+        settings: {
+          theme: roomSettings.theme,
+          minPlayers: roomSettings.minPlayers,
+          maxPlayers: roomSettings.maxPlayers,
+          questionsPerRound: roomSettings.questionsPerRound,
+        },
       };
     }
-    case 'LOBBY_UPDATE':
+    case 'LobbyUpdate':
       return {
         ...state,
         lobbyPlayers: action.players,
@@ -111,11 +120,11 @@ function reducer(state: GameState, action: GameAction): GameState {
         countdownStarted: action.countdownStarted,
         phase: action.countdownStarted && state.phase === 'waiting' ? 'countdown' : state.phase,
       };
-    case 'COUNTDOWN_STARTED':
+    case 'CountdownStarted':
       return { ...state, phase: 'countdown', countdown: action.tijd, countdownStarted: true };
-    case 'TIMER_UPDATE':
+    case 'TimerUpdate':
       return { ...state, countdown: action.tijd };
-    case 'GAME_STARTED':
+    case 'GameStarted':
       return {
         ...state,
         phase: 'playing',
@@ -123,7 +132,7 @@ function reducer(state: GameState, action: GameAction): GameState {
         selectedAnswer: null,
         showAnswerFeedback: false,
       };
-    case 'NEW_QUESTION':
+    case 'NewQuestion':
       return {
         ...state,
         question: action.question,
@@ -132,20 +141,20 @@ function reducer(state: GameState, action: GameAction): GameState {
         showAnswerFeedback: false,
         error: null,
       };
-    case 'SELECT_ANSWER':
+    case 'SelectAnswer':
       return {
         ...state,
         questionLocked: true,
         selectedAnswer: action.index,
         showAnswerFeedback: false,
       };
-    case 'ANSWER_WRONG':
+    case 'AnswerWrong':
       return { ...state, showAnswerFeedback: true, error: action.error };
-    case 'LOCK_QUESTION':
+    case 'LockQuestion':
       return { ...state, questionLocked: true };
-    case 'UPDATE_GAME':
+    case 'UpdateGame':
       return { ...state, players: action.players };
-    case 'WINNER':
+    case 'Winner':
       return {
         ...state,
         phase: 'finished',
@@ -155,7 +164,7 @@ function reducer(state: GameState, action: GameAction): GameState {
         showAnswerFeedback: false,
         error: null,
       };
-    case 'BACK_TO_LOBBY':
+    case 'BackToLobby':
       return {
         ...state,
         phase: 'waiting',
@@ -168,9 +177,9 @@ function reducer(state: GameState, action: GameAction): GameState {
         countdownStarted: false,
         isCreator: action.creatorId ? action.mySocketId === action.creatorId : state.isCreator,
       };
-    case 'SET_CREATOR':
+    case 'SetCreator':
       return { ...state, isCreator: action.isCreator };
-    case 'SET_ERROR':
+    case 'SetError':
       return { ...state, error: action.error };
     default:
       return state;
@@ -199,7 +208,7 @@ export function useGameSocket(roomSlug: string) {
   }, []);
 
   const submitAnswer = useCallback((index: number) => {
-    dispatch({ type: 'SELECT_ANSWER', index });
+    dispatch({ type: 'SelectAnswer', index });
     socketRef.current?.emit('submitAnswer', index);
   }, []);
 
@@ -225,34 +234,32 @@ export function useGameSocket(roomSlug: string) {
         playerName: session.playerName,
         roomName: session.roomName,
         categories: session.categories,
+        ...(session.settings ? { settings: session.settings } : {}),
       });
     };
 
     socket.on('connect', join);
-    socket.on('mySocketId', (id) => dispatch({ type: 'SET_SOCKET_ID', id }));
-    socket.on('settingsUpdated', (settings) => {
-      dispatch({ type: 'SET_SETTINGS', settings });
-      if (settings.theme) applyGameTheme(settings.theme);
-    });
+    socket.on('mySocketId', (id) => dispatch({ type: 'SetSocketId', id }));
     socket.on('waitingPhase', (data) => {
-      dispatch({ type: 'WAITING_PHASE', data, roomName: session.roomName });
+      dispatch({ type: 'WaitingPhase', data, roomName: session.roomName });
+      if (data.settings?.theme) applyGameTheme(data.settings.theme);
     });
     socket.on('lobbyUpdate', (data) => {
       dispatch({
-        type: 'LOBBY_UPDATE',
+        type: 'LobbyUpdate',
         players: data.players,
         countdownStarted: data.countdownStarted,
         creatorId: data.creatorId,
       });
     });
-    socket.on('countdownStarted', (tijd) => dispatch({ type: 'COUNTDOWN_STARTED', tijd }));
-    socket.on('timerUpdate', (tijd) => dispatch({ type: 'TIMER_UPDATE', tijd }));
-    socket.on('gameStarted', () => dispatch({ type: 'GAME_STARTED' }));
-    socket.on('newQuestion', (q) => dispatch({ type: 'NEW_QUESTION', question: q }));
-    socket.on('updateGame', (players) => dispatch({ type: 'UPDATE_GAME', players }));
-    socket.on('winner', (name) => dispatch({ type: 'WINNER', name }));
+    socket.on('countdownStarted', (tijd) => dispatch({ type: 'CountdownStarted', tijd }));
+    socket.on('timerUpdate', (tijd) => dispatch({ type: 'TimerUpdate', tijd }));
+    socket.on('gameStarted', () => dispatch({ type: 'GameStarted' }));
+    socket.on('newQuestion', (q) => dispatch({ type: 'NewQuestion', question: q }));
+    socket.on('updateGame', (players) => dispatch({ type: 'UpdateGame', players }));
+    socket.on('winner', (name) => dispatch({ type: 'Winner', name }));
     socket.on('youAreNowCreator', () => {
-      dispatch({ type: 'SET_CREATOR', isCreator: true });
+      dispatch({ type: 'SetCreator', isCreator: true });
       toast.message('Je bent nu de host');
     });
     socket.on('notEnoughPlayers', (data) => {
@@ -267,7 +274,7 @@ export function useGameSocket(roomSlug: string) {
             ? data
             : 10;
       dispatch({
-        type: 'BACK_TO_LOBBY',
+        type: 'BackToLobby',
         tijd,
         creatorId,
         mySocketId: mySocketIdRef.current,
@@ -275,7 +282,7 @@ export function useGameSocket(roomSlug: string) {
     });
     socket.on('errorMessage', (msg) => {
       if (msg.includes('Fout!')) {
-        dispatch({ type: 'ANSWER_WRONG', error: msg });
+        dispatch({ type: 'AnswerWrong', error: msg });
       } else {
         toast.error(msg);
         if (msg.includes('gesloten') || msg.includes('vol')) leave();

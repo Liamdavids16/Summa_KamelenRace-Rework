@@ -8,7 +8,7 @@ export interface ThemeConfig {
   heroSubtitle: string;
 }
 
-export const THEME_CONFIG: Record<ThemeId, ThemeConfig> = {
+export const ThemeConfigMap: Record<ThemeId, ThemeConfig> = {
   desert: {
     id: 'desert',
     label: 'Woestijn',
@@ -40,5 +40,5 @@ export const THEME_CONFIG: Record<ThemeId, ThemeConfig> = {
 };
 
 export function getThemeConfig(theme: ThemeId): ThemeConfig {
-  return THEME_CONFIG[theme];
+  return ThemeConfigMap[theme];
 }

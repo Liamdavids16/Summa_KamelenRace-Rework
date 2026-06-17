@@ -21,7 +21,6 @@ import type { SafeRoom } from '@/types/game';
 interface RoomCardProps {
   name: string;
   room: SafeRoom;
-  maxPlayers: number;
   initialPlayerName?: string;
   onJoin: (roomName: string, playerName: string) => void;
 }
@@ -29,7 +28,6 @@ interface RoomCardProps {
 export function RoomCard({
   name,
   room,
-  maxPlayers,
   initialPlayerName = '',
   onJoin,
 }: RoomCardProps) {
@@ -40,6 +38,7 @@ export function RoomCard({
     if (initialPlayerName) setJoinName(initialPlayerName);
   }, [initialPlayerName]);
 
+  const maxPlayers = room.settings?.maxPlayers ?? 8;
   const statusLabel =
     room.status === 'playing' ? 'Bezig' : room.countdownStarted ? 'Countdown' : 'Lobby';
   const full = room.playerCount >= maxPlayers;

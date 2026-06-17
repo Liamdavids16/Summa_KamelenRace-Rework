@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Layers, Loader2, RefreshCw, Users } from 'lucide-react';
+import { ChevronDown, Layers, Loader2, RefreshCw, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemedShell } from '@/components/layout/ThemedShell';
 import { LeaderboardSidebar } from '@/components/lobby/LeaderboardSidebar';
@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NumberInput } from '@/components/ui/number-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -24,6 +25,9 @@ import {
 } from '@/components/ui/select';
 import { useLobbyData } from '@/hooks/useLobbyData';
 import { saveJoinSession } from '@/lib/join-session';
+import { roomSettingsFromGlobal } from '@/lib/room-settings';
+import { ThemeLabels, Themes, normalizeThemeId, type ThemeId } from '@/lib/themes';
+import type { RoomSettings } from '@/types/game';
 
 export function LobbyView() {
   const router = useRouter();
@@ -35,8 +39,23 @@ export function LobbyView() {
   const [roomExists, setRoomExists] = useState(false);
   const [checkingRoom, setCheckingRoom] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>('desert');
+  const [minPlayers, setMinPlayers] = useState(4);
+  const [maxPlayers, setMaxPlayers] = useState(8);
+  const [questionsPerRound, setQuestionsPerRound] = useState(10);
+  const [countdownSeconds, setCountdownSeconds] = useState(10);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const roomNames = useMemo(() => Object.keys(rooms), [rooms]);
+
+  useEffect(() => {
+    const defaults = roomSettingsFromGlobal(settings);
+    setTheme(normalizeThemeId(defaults.theme));
+    setMinPlayers(defaults.minPlayers);
+    setMaxPlayers(defaults.maxPlayers);
+    setQuestionsPerRound(defaults.questionsPerRound);
+    setCountdownSeconds(defaults.countdownSeconds);
+  }, [settings]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -75,6 +94,14 @@ export function LobbyView() {
     });
   };
 
+  const buildRoomSettings = (): RoomSettings => ({
+    theme,
+    minPlayers,
+    maxPlayers,
+    questionsPerRound,
+    countdownSeconds,
+  });
+
   const handleJoin = () => {
     const name = playerName.trim();
     const room = roomName.trim();
@@ -89,7 +116,17 @@ export function LobbyView() {
       return;
     }
 
-    saveJoinSession({ playerName: name, roomName: room, categories: cats });
+    if (!roomExists && minPlayers > maxPlayers) {
+      toast.error('Min. spelers mag niet groter zijn dan max. spelers');
+      return;
+    }
+
+    saveJoinSession({
+      playerName: name,
+      roomName: room,
+      categories: cats,
+      ...(!roomExists ? { settings: buildRoomSettings() } : {}),
+    });
     router.push(`/room/${encodeURIComponent(room)}`);
   };
 
@@ -187,7 +224,101 @@ export function LobbyView() {
 
               {!roomExists && (
                 <>
-                    <Separator />
+                  <Separator />
+                  <div className="space-y-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full justify-between px-4 font-medium"
+                      onClick={() => setSettingsOpen((open) => !open)}
+                      aria-expanded={settingsOpen}
+                    >
+                      <span>Sessie-instellingen</span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 transition-transform ${settingsOpen ? '' : '-rotate-90'}`}
+                      />
+                    </Button>
+                    {settingsOpen && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="sessionTheme" className="text-xs text-muted-foreground">
+                            Thema
+                          </Label>
+                          <Select value={theme} onValueChange={(v) => setTheme(v as ThemeId)}>
+                            <SelectTrigger id="sessionTheme">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Themes.map((t) => (
+                                <SelectItem key={t} value={t}>
+                                  {ThemeLabels[t]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="minPlayers" className="text-xs text-muted-foreground">
+                              Min. spelers
+                            </Label>
+                            <NumberInput
+                              id="minPlayers"
+                              min={1}
+                              max={20}
+                              value={minPlayers}
+                              onChange={setMinPlayers}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="maxPlayers" className="text-xs text-muted-foreground">
+                              Max. spelers
+                            </Label>
+                            <NumberInput
+                              id="maxPlayers"
+                              min={1}
+                              max={20}
+                              value={maxPlayers}
+                              onChange={setMaxPlayers}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="questionsPerRound"
+                              className="text-xs text-muted-foreground"
+                            >
+                              Vragen per ronde
+                            </Label>
+                            <NumberInput
+                              id="questionsPerRound"
+                              min={1}
+                              max={100}
+                              value={questionsPerRound}
+                              onChange={setQuestionsPerRound}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="countdownSeconds"
+                              className="text-xs text-muted-foreground"
+                            >
+                              Countdown (sec)
+                            </Label>
+                            <NumberInput
+                              id="countdownSeconds"
+                              min={3}
+                              max={60}
+                              value={countdownSeconds}
+                              onChange={setCountdownSeconds}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Separator />
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <Label>Kies Categorieën</Label>
@@ -265,7 +396,6 @@ export function LobbyView() {
                     key={name}
                     name={name}
                     room={rooms[name]}
-                    maxPlayers={settings.maxPlayers}
                     initialPlayerName={playerName}
                     onJoin={handleQuickJoin}
                   />

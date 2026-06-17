@@ -1,18 +1,21 @@
-export const JOIN_SESSION_KEY = 'kamelenrace:join';
+import type { RoomSettings } from '@/types/game';
+
+export const JoinSessionKey = 'kamelenrace:join';
 
 export interface JoinSession {
   playerName: string;
   roomName: string;
   categories: string[];
+  settings?: RoomSettings;
 }
 
 export function saveJoinSession(session: JoinSession): void {
-  sessionStorage.setItem(JOIN_SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(JoinSessionKey, JSON.stringify(session));
 }
 
 export function loadJoinSession(): JoinSession | null {
   if (typeof window === 'undefined') return null;
-  const raw = sessionStorage.getItem(JOIN_SESSION_KEY);
+  const raw = sessionStorage.getItem(JoinSessionKey);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as JoinSession;
@@ -22,5 +25,5 @@ export function loadJoinSession(): JoinSession | null {
 }
 
 export function clearJoinSession(): void {
-  sessionStorage.removeItem(JOIN_SESSION_KEY);
+  sessionStorage.removeItem(JoinSessionKey);
 }

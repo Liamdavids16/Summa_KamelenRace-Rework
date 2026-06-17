@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NumberInput } from '@/components/ui/number-input';
 import {
   Select,
   SelectContent,
@@ -20,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ThemedShell } from '@/components/layout/ThemedShell';
 import { useAdminSocket } from '@/hooks/useAdminSocket';
-import { THEME_LABELS, THEMES, normalizeThemeId, type ThemeId } from '@/lib/themes';
+import { ThemeLabels, Themes, normalizeThemeId, type ThemeId } from '@/lib/themes';
 import type { Question } from '@/types/game';
 
 export function AdminDashboard() {
@@ -174,9 +175,9 @@ export function AdminDashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {THEMES.map((t) => (
+                    {Themes.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {THEME_LABELS[t]}
+                        {ThemeLabels[t]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -185,33 +186,30 @@ export function AdminDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Min. spelers</Label>
-                  <Input
-                    type="number"
+                  <NumberInput
                     min={1}
                     max={20}
                     value={minPlayers}
-                    onChange={(e) => setMinPlayers(Number(e.target.value))}
+                    onChange={setMinPlayers}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Max. spelers</Label>
-                  <Input
-                    type="number"
+                  <NumberInput
                     min={1}
                     max={20}
                     value={maxPlayers}
-                    onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                    onChange={setMaxPlayers}
                   />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Vragen per ronde</Label>
-                <Input
-                  type="number"
+                <NumberInput
                   min={1}
                   max={100}
                   value={questionsPerRound}
-                  onChange={(e) => setQuestionsPerRound(Number(e.target.value))}
+                  onChange={setQuestionsPerRound}
                 />
               </div>
               <Button className="theme-cta" onClick={handleSaveSettings}>Opslaan</Button>

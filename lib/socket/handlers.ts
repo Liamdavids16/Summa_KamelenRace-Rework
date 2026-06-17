@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io';
 import { saveLeaderboard } from '@/lib/leaderboard';
+import { normalizeRoomSettings, roomSettingsFromGlobal } from '@/lib/room-settings';
 import { saveSettings } from '@/lib/settings';
 import { normalizeThemeId } from '@/lib/themes';
 import {
@@ -9,7 +10,7 @@ import {
   setQuestionBank,
 } from '@/lib/questions';
 import {
-  ADMIN_PASSWORDS,
+  AdminPasswords,
   clearLeaderboard,
   getLeaderboard,
   globalSettings,
@@ -55,7 +56,7 @@ export function resetRoom(name: string): void {
   if (!rooms[name]) return;
   rooms[name].hasWinner = false;
   rooms[name].status = 'waiting';
-  rooms[name].countdown = 10;
+  rooms[name].countdown = rooms[name].settings.countdownSeconds;
   rooms[name].countdownStarted = false;
 
   for (const id in rooms[name].players) {
@@ -65,7 +66,7 @@ export function resetRoom(name: string): void {
 
   getIO()
     .to(name)
-    .emit('backToLobby', { tijd: 10, creatorId: rooms[name].creatorId });
+    .emit('backToLobby', { tijd: rooms[name].settings.countdownSeconds, creatorId: rooms[name].creatorId });
   getIO().to(name).emit('updateGame', rooms[name].players);
   broadcastLobbyUpdate(name);
 }
@@ -103,24 +104,27 @@ export function registerSocketHandlers(socket: Socket): void {
     socket.emit('roomStatus', !!rooms[name]);
   });
 
-  socket.on('joinRoom', ({ playerName, roomName, categories }) => {
+  socket.on('joinRoom', ({ playerName, roomName, categories, settings }) => {
+    const defaultSettings = roomSettingsFromGlobal(globalSettings);
     if (!rooms[roomName]) {
+      const roomSettings = normalizeRoomSettings(settings ?? {}, defaultSettings);
       rooms[roomName] = {
         categories,
         players: {},
         hasWinner: false,
         status: 'waiting',
-        countdown: 10,
+        countdown: roomSettings.countdownSeconds,
         timerId: null,
         creatorId: socket.id,
         countdownStarted: false,
+        settings: roomSettings,
       };
       broadcastRooms();
     }
     const room = rooms[roomName];
     if (room.status === 'playing') return socket.emit('errorMessage', 'Race al bezig!');
-    if (Object.keys(room.players).length >= globalSettings.maxPlayers)
-      return socket.emit('errorMessage', `Kamer is vol! (Max ${globalSettings.maxPlayers})`);
+    if (Object.keys(room.players).length >= room.settings.maxPlayers)
+      return socket.emit('errorMessage', `Kamer is vol! (Max ${room.settings.maxPlayers})`);
 
     socket.join(roomName);
     socket.data.roomId = roomName;
@@ -140,6 +144,7 @@ export function registerSocketHandlers(socket: Socket): void {
       categories: room.categories,
       isCreator,
       countdownStarted: room.countdownStarted,
+      settings: room.settings,
     });
     broadcastLobbyUpdate(roomName);
     broadcastRooms();
@@ -171,7 +176,7 @@ export function registerSocketHandlers(socket: Socket): void {
     if (!p) return;
 
     if (idx === p.currentQuestion.answer) {
-      const step = 100 / globalSettings.questionsPerRound;
+      const step = 100 / room.settings.questionsPerRound;
       p.progress = Math.min(100, p.progress + step);
       if (roomId) getIO().to(roomId).emit('camelStepped', socket.id);
 
@@ -198,7 +203,7 @@ export function registerSocketHandlers(socket: Socket): void {
   });
 
   socket.on('adminLogin', (pass) => {
-    if (ADMIN_PASSWORDS.includes(pass)) {
+    if (AdminPasswords.includes(pass)) {
       const questionBank = refreshQuestionBank();
       socket.join('admins');
       socket.emit('adminData', {
