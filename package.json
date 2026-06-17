@@ -1,6 +1,6 @@
 {
     "name": "kamelenrace",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "description": "Summa Kamelenrace - real-time multiplayer quiz race",
     "private": true,
     "scripts": {
