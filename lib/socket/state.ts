@@ -1,5 +1,6 @@
 import type { GlobalSettings, Leaderboard, Room } from '@/types/game';
 import { loadLeaderboard } from '@/lib/leaderboard';
+import { loadSettings } from '@/lib/settings';
 
 export const ADMIN_PASSWORDS = ['awooDestiny23@!', 'Summa_Desi', 'Lynxies'];
 
@@ -13,13 +14,7 @@ export const rooms: Record<string, Room> =
   globalStore.__kamelenRooms ?? (globalStore.__kamelenRooms = {});
 
 export const globalSettings: GlobalSettings =
-  globalStore.__kamelenSettings ??
-  (globalStore.__kamelenSettings = {
-    theme: 'desert',
-    minPlayers: 4,
-    maxPlayers: 8,
-    questionsPerRound: 10,
-  });
+  globalStore.__kamelenSettings ?? (globalStore.__kamelenSettings = loadSettings());
 
 const leaderboardState: Leaderboard =
   globalStore.__kamelenLeaderboard ?? (globalStore.__kamelenLeaderboard = loadLeaderboard());

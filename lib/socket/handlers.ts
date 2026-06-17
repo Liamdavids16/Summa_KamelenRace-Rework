@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io';
 import { saveLeaderboard } from '@/lib/leaderboard';
+import { saveSettings } from '@/lib/settings';
 import { normalizeThemeId } from '@/lib/themes';
 import {
   getQuestionBank,
@@ -254,6 +255,7 @@ export function registerSocketHandlers(socket: Socket): void {
       );
     globalSettings.questionsPerRound =
       newSettings.questionsPerRound || globalSettings.questionsPerRound;
+    saveSettings(globalSettings);
     getIO().emit('settingsUpdated', globalSettings);
     updateAdmin();
   });

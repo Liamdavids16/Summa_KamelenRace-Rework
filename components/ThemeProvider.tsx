@@ -1,35 +1,55 @@
 'use client';
 
-import { useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { applyTheme } from '@/lib/apply-theme';
 import { createSocket } from '@/lib/socket/client';
-import type { LobbyResponse } from '@/types/api';
+import { normalizeThemeId, type ThemeId } from '@/lib/themes';
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+const ThemeContext = createContext<ThemeId>('desert');
+
+export function useThemeId(): ThemeId {
+  return useContext(ThemeContext);
+}
+
+function readThemeFromDom(): ThemeId {
+  return normalizeThemeId(document.documentElement.getAttribute('data-theme') ?? 'desert');
+}
+
+export function ThemeProvider({
+  children,
+  initialTheme,
+}: {
+  children: React.ReactNode;
+  initialTheme: ThemeId;
+}) {
+  const [themeId, setThemeId] = useState<ThemeId>(initialTheme);
+
   useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        const res = await fetch('/api/lobby', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = (await res.json()) as LobbyResponse;
-        if (data.settings?.theme) applyTheme(data.settings.theme);
-      } catch {
-      }
-    };
+    const observer = new MutationObserver(() => {
+      setThemeId(readThemeFromDom());
+    });
 
-    void loadTheme();
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
 
     const socket = createSocket();
     socket.on('settingsUpdated', (settings) => {
-      if (settings.theme) applyTheme(settings.theme);
+      if (settings.theme) {
+        const next = normalizeThemeId(settings.theme);
+        applyTheme(next);
+        setThemeId(next);
+      }
     });
     socket.connect();
 
     return () => {
+      observer.disconnect();
       socket.disconnect();
       socket.removeAllListeners();
     };
   }, []);
 
-  return children;
+  return <ThemeContext.Provider value={themeId}>{children}</ThemeContext.Provider>;
 }
