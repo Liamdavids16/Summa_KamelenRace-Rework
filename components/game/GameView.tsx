@@ -86,13 +86,13 @@ export function GameView({ roomSlug }: GameViewProps) {
             <CardTitle>Wachtkamer</CardTitle>
             <CardDescription>
               {state.phase === 'countdown'
-                ? 'Volgende ronde start automatisch...'
+                ? 'De race start zo...'
                 : state.isCreator
                   ? state.hasCompletedRound
-                    ? 'Wacht op de automatische herstart van de volgende ronde.'
+                    ? 'Nieuwe spelers kunnen joinen. Start de volgende ronde wanneer iedereen er is.'
                     : 'Jij bent de host. Start zodra iedereen er is.'
                   : state.hasCompletedRound
-                    ? 'De volgende ronde start automatisch.'
+                    ? 'Nieuwe spelers kunnen joinen. Wacht tot de host de volgende ronde start.'
                     : 'Wacht tot de host de race start.'}
             </CardDescription>
           </CardHeader>
@@ -117,7 +117,7 @@ export function GameView({ roomSlug }: GameViewProps) {
               ))}
             </ul>
 
-            {state.isCreator && !state.countdownStarted && !state.hasCompletedRound && (
+            {state.isCreator && !state.countdownStarted && (
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>
@@ -203,7 +203,11 @@ export function GameView({ roomSlug }: GameViewProps) {
       )}
 
       {state.phase === 'finished' && state.winnerName && (
-        <WinScreen winnerName={state.winnerName} players={state.players} />
+        <WinScreen
+          winnerName={state.winnerName}
+          players={state.players}
+          autoStartDelaySeconds={state.autoStartDelaySeconds}
+        />
       )}
     </ThemedShell>
   );

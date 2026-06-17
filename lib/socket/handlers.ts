@@ -87,7 +87,7 @@ export function FinishRound(name: string): void {
   }
 
   if (rooms[name]) {
-    resetRoom(name, true);
+    resetRoom(name, false);
   }
 }
 

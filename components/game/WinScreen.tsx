@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { Crown, Medal, Sparkles, Trophy } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import type { Player } from '@/types/game';
 interface WinScreenProps {
   winnerName: string;
   players: Record<string, Player>;
+  autoStartDelaySeconds: number;
 }
 
 const ColumnWidth = 'w-[5.75rem] sm:w-[6.75rem]';
@@ -132,11 +133,20 @@ function PodiumSpot({
   );
 }
 
-export function WinScreen({ winnerName, players }: WinScreenProps) {
+export function WinScreen({ winnerName, players, autoStartDelaySeconds }: WinScreenProps) {
   const ranked = Object.values(players).sort((a, b) => b.progress - a.progress);
   const first = ranked[0];
   const second = ranked[1];
   const third = ranked[2];
+  const [secondsLeft, setSecondsLeft] = useState(autoStartDelaySeconds);
+
+  useEffect(() => {
+    setSecondsLeft(autoStartDelaySeconds);
+    const interval = window.setInterval(() => {
+      setSecondsLeft((current) => (current <= 1 ? 0 : current - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [autoStartDelaySeconds]);
 
   useEffect(() => {
     const interval = fireWinConfetti();
@@ -193,7 +203,15 @@ export function WinScreen({ winnerName, players }: WinScreenProps) {
           )}
 
           <p className="text-center text-sm text-muted-foreground">
-            De wachtkamer wordt zo herladen...
+            {secondsLeft > 0 ? (
+              <>
+                De volgende ronde start over{' '}
+                <span className="font-semibold tabular-nums text-foreground">{secondsLeft}</span>{' '}
+                {secondsLeft === 1 ? 'seconde' : 'seconden'} 
+              </>
+            ) : (
+              'Terug naar de wachtkamer...'
+            )}
           </p>
         </CardContent>
       </Card>
