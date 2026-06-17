@@ -24,15 +24,9 @@ import { ThemedShell } from '@/components/layout/ThemedShell';
 import { useThemeOptions } from '@/hooks/useActiveTheme';
 import { useAdminSocket } from '@/hooks/useAdminSocket';
 import { Locales, type AppLocale } from '@/i18n/routing';
+import { LocaleOption } from '@/components/layout/LocaleFlag';
 import { normalizeThemeId, type ThemeId } from '@/lib/themes';
 import type { Question } from '@/types/game';
-
-const LocaleLabels: Record<AppLocale, string> = {
-  nl: 'NL',
-  en: 'EN',
-  fr: 'FR',
-  de: 'DE',
-};
 
 export function AdminDashboard() {
   const locale = useLocale() as AppLocale;
@@ -295,13 +289,13 @@ export function AdminDashboard() {
                     value={questionLocale}
                     onValueChange={(v) => setQuestionBankLocale(v as AppLocale)}
                   >
-                    <SelectTrigger className="w-[5.5rem]">
+                    <SelectTrigger className="w-[6.75rem] gap-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {Locales.map((item) => (
                         <SelectItem key={item} value={item}>
-                          {LocaleLabels[item]}
+                          <LocaleOption locale={item} />
                         </SelectItem>
                       ))}
                     </SelectContent>

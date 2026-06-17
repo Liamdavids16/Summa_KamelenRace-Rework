@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { Locales, type AppLocale } from '@/i18n/routing';
 import { LocaleChangeEvent } from '@/components/layout/ClientIntlProvider';
+import { LocaleOption } from '@/components/layout/LocaleFlag';
 import { setLocaleCookie } from '@/lib/locale-cookie';
 import {
   Select,
@@ -13,13 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-const LocaleLabels: Record<AppLocale, string> = {
-  nl: 'NL',
-  en: 'EN',
-  fr: 'FR',
-  de: 'DE',
-};
 
 function IsActiveRoomPath(): boolean {
   if (typeof window === 'undefined') return false;
@@ -57,13 +51,13 @@ export function LocaleSwitcher() {
         });
       }}
     >
-      <SelectTrigger className="h-8 w-[5.5rem] rounded-full" aria-label={t('label')}>
+      <SelectTrigger className="h-8 w-[6.75rem] gap-2 rounded-full" aria-label={t('label')}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent variant="borderless">
         {Locales.map((item) => (
           <SelectItem key={item} value={item}>
-            {LocaleLabels[item]}
+            <LocaleOption locale={item} />
           </SelectItem>
         ))}
       </SelectContent>
