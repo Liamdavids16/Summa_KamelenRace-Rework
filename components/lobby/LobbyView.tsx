@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -44,6 +45,8 @@ export function LobbyView() {
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [questionsPerRound, setQuestionsPerRound] = useState(10);
   const [countdownSeconds, setCountdownSeconds] = useState(10);
+  const [autoKickAfterRound, setAutoKickAfterRound] = useState(false);
+  const [autoStartDelaySeconds, setAutoStartDelaySeconds] = useState(10);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const roomNames = useMemo(() => Object.keys(rooms), [rooms]);
@@ -55,6 +58,8 @@ export function LobbyView() {
     setMaxPlayers(defaults.maxPlayers);
     setQuestionsPerRound(defaults.questionsPerRound);
     setCountdownSeconds(defaults.countdownSeconds);
+    setAutoKickAfterRound(defaults.autoKickAfterRound);
+    setAutoStartDelaySeconds(defaults.autoStartDelaySeconds);
   }, [settings]);
 
   useEffect(() => {
@@ -100,6 +105,8 @@ export function LobbyView() {
     maxPlayers,
     questionsPerRound,
     countdownSeconds,
+    autoKickAfterRound,
+    autoStartDelaySeconds,
   });
 
   const handleJoin = () => {
@@ -248,7 +255,7 @@ export function LobbyView() {
                             <SelectTrigger id="sessionTheme">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent variant="borderless">
                               {Themes.map((t) => (
                                 <SelectItem key={t} value={t}>
                                   {ThemeLabels[t]}
@@ -314,6 +321,36 @@ export function LobbyView() {
                               onChange={setCountdownSeconds}
                             />
                           </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label
+                              htmlFor="autoStartDelaySeconds"
+                              className="text-xs text-muted-foreground"
+                            >
+                              Automatisch herstarten na (sec)
+                            </Label>
+                            <NumberInput
+                              id="autoStartDelaySeconds"
+                              min={10}
+                              max={60}
+                              value={autoStartDelaySeconds}
+                              onChange={setAutoStartDelaySeconds}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 rounded-md px-1 py-1">
+                          <Label
+                            htmlFor="autoKickAfterRound"
+                            className="cursor-pointer text-sm leading-tight"
+                          >
+                            Spelers automatisch verwijderen na ronde (host blijft)
+                          </Label>
+                          <Switch
+                            id="autoKickAfterRound"
+                            checked={autoKickAfterRound}
+                            onCheckedChange={setAutoKickAfterRound}
+                          />
                         </div>
                       </div>
                     )}

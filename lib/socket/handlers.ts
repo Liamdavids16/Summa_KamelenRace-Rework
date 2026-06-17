@@ -36,6 +36,61 @@ export function updateAdmin(): void {
     });
 }
 
+export function ClearRoundEndTimer(name: string): void {
+  const room = rooms[name];
+  if (!room?.roundEndTimerId) return;
+  clearTimeout(room.roundEndTimerId);
+  room.roundEndTimerId = null;
+}
+
+export function StartCountdownForRoom(name: string): void {
+  const room = rooms[name];
+  if (!room || room.status !== 'waiting' || room.countdownStarted) return;
+  if (Object.keys(room.players).length < 1) return;
+
+  room.countdownStarted = true;
+  getIO().to(name).emit('countdownStarted', room.countdown);
+  startTimer(name);
+  updateAdmin();
+}
+
+export function KickNonHostPlayers(name: string): void {
+  const room = rooms[name];
+  if (!room) return;
+
+  const creatorId = room.creatorId;
+  for (const id in room.players) {
+    if (id === creatorId) continue;
+    const socket = getIO().sockets.sockets.get(id);
+    if (socket) {
+      socket.leave(name);
+      delete socket.data.roomId;
+      socket.emit('kickedAfterRound');
+    }
+    delete room.players[id];
+  }
+
+  broadcastLobbyUpdate(name);
+  broadcastRooms();
+  getIO().to(name).emit('updateGame', room.players);
+}
+
+export function FinishRound(name: string): void {
+  const room = rooms[name];
+  if (!room) return;
+
+  ClearRoundEndTimer(name);
+  if (!room.hasWinner) return;
+
+  if (room.settings.autoKickAfterRound) {
+    KickNonHostPlayers(name);
+  }
+
+  if (rooms[name]) {
+    resetRoom(name, true);
+  }
+}
+
 export function startTimer(name: string): void {
   const r = rooms[name];
   r.timerId = setInterval(() => {
@@ -52,12 +107,13 @@ export function startTimer(name: string): void {
   }, 1000);
 }
 
-export function resetRoom(name: string): void {
+export function resetRoom(name: string, autoStartNext = false): void {
   if (!rooms[name]) return;
+  ClearRoundEndTimer(name);
   rooms[name].hasWinner = false;
   rooms[name].status = 'waiting';
   rooms[name].countdown = rooms[name].settings.countdownSeconds;
-  rooms[name].countdownStarted = false;
+  rooms[name].countdownStarted = autoStartNext;
 
   for (const id in rooms[name].players) {
     rooms[name].players[id].progress = 0;
@@ -66,9 +122,19 @@ export function resetRoom(name: string): void {
 
   getIO()
     .to(name)
-    .emit('backToLobby', { tijd: rooms[name].settings.countdownSeconds, creatorId: rooms[name].creatorId });
+    .emit('backToLobby', {
+      tijd: rooms[name].settings.countdownSeconds,
+      creatorId: rooms[name].creatorId,
+      countdownStarted: autoStartNext,
+    });
   getIO().to(name).emit('updateGame', rooms[name].players);
   broadcastLobbyUpdate(name);
+
+  if (autoStartNext) {
+    getIO().to(name).emit('countdownStarted', rooms[name].countdown);
+    startTimer(name);
+    updateAdmin();
+  }
 }
 
 export function leave(socket: Socket): void {
@@ -78,11 +144,13 @@ export function leave(socket: Socket): void {
     delete rooms[name].players[socket.id];
 
     if (Object.keys(rooms[name].players).length === 0) {
+      ClearRoundEndTimer(name);
       if (rooms[name].timerId) clearInterval(rooms[name].timerId);
       delete rooms[name];
       broadcastRooms();
     } else {
       if (wasCreator) {
+        ClearRoundEndTimer(name);
         const nextPlayerId = Object.keys(rooms[name].players)[0];
         rooms[name].creatorId = nextPlayerId;
         getIO().to(nextPlayerId).emit('youAreNowCreator');
@@ -115,6 +183,7 @@ export function registerSocketHandlers(socket: Socket): void {
         status: 'waiting',
         countdown: roomSettings.countdownSeconds,
         timerId: null,
+        roundEndTimerId: null,
         creatorId: socket.id,
         countdownStarted: false,
         settings: roomSettings,
@@ -153,19 +222,9 @@ export function registerSocketHandlers(socket: Socket): void {
 
   socket.on('creatorStartCountdown', () => {
     const room = rooms[socket.data.roomId ?? ''];
-    if (!room || room.status !== 'waiting' || room.countdownStarted) return;
-    if (room.creatorId !== socket.id) return;
-
-    const currentCount = Object.keys(room.players).length;
-    if (currentCount < 1) return;
-
-    room.countdownStarted = true;
+    if (!room || room.creatorId !== socket.id) return;
     const roomId = socket.data.roomId;
-    if (roomId) {
-      getIO().to(roomId).emit('countdownStarted', room.countdown);
-      startTimer(roomId);
-    }
-    updateAdmin();
+    if (roomId) StartCountdownForRoom(roomId);
   });
 
   socket.on('submitAnswer', (idx) => {
@@ -188,7 +247,11 @@ export function registerSocketHandlers(socket: Socket): void {
         getIO().emit('updateLeaderboard', lb);
         if (roomId) {
           getIO().to(roomId).emit('winner', p.name);
-          setTimeout(() => resetRoom(roomId), 6000);
+          ClearRoundEndTimer(roomId);
+          room.roundEndTimerId = setTimeout(
+            () => FinishRound(roomId),
+            room.settings.autoStartDelaySeconds * 1000
+          );
         }
       } else {
         p.currentQuestion = getRandomQuestion(room.categories);
@@ -232,6 +295,7 @@ export function registerSocketHandlers(socket: Socket): void {
 
   socket.on('adminDeleteRoom', (name) => {
     if (rooms[name]) {
+      ClearRoundEndTimer(name);
       if (rooms[name].timerId) clearInterval(rooms[name].timerId);
       getIO().to(name).emit('errorMessage', 'Kamer gesloten door admin.');
       delete rooms[name];

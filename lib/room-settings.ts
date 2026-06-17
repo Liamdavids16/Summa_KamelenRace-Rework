@@ -2,6 +2,7 @@ import { normalizeThemeId } from '@/lib/themes';
 import type { GlobalSettings, RoomSettings } from '@/types/game';
 
 const DefaultCountdownSeconds = 10;
+const DefaultAutoStartDelaySeconds = 10;
 
 export function roomSettingsFromGlobal(global: GlobalSettings): RoomSettings {
   return {
@@ -10,6 +11,8 @@ export function roomSettingsFromGlobal(global: GlobalSettings): RoomSettings {
     maxPlayers: global.maxPlayers,
     questionsPerRound: global.questionsPerRound,
     countdownSeconds: DefaultCountdownSeconds,
+    autoKickAfterRound: false,
+    autoStartDelaySeconds: DefaultAutoStartDelaySeconds,
   };
 }
 
@@ -30,6 +33,10 @@ export function normalizeRoomSettings(raw: Partial<RoomSettings>, fallback: Room
     60,
     Math.max(3, parseInt(String(raw.countdownSeconds)) || fallback.countdownSeconds)
   );
+  const autoStartDelaySeconds = Math.min(
+    60,
+    Math.max(10, parseInt(String(raw.autoStartDelaySeconds)) || fallback.autoStartDelaySeconds)
+  );
 
   return {
     theme: normalizeThemeId(raw.theme ?? fallback.theme),
@@ -37,5 +44,7 @@ export function normalizeRoomSettings(raw: Partial<RoomSettings>, fallback: Room
     maxPlayers,
     questionsPerRound,
     countdownSeconds,
+    autoKickAfterRound: raw.autoKickAfterRound ?? fallback.autoKickAfterRound,
+    autoStartDelaySeconds,
   };
 }

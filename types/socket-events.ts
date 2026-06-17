@@ -32,6 +32,7 @@ export interface ServerToClientEvents {
   updateGame: (players: Room['players']) => void;
   camelStepped: (playerId: string) => void;
   winner: (winnerName: string) => void;
+  kickedAfterRound: () => void;
   backToLobby: (data: BackToLobbyData | number) => void;
   youAreNowCreator: () => void;
   notEnoughPlayers: (data: NotEnoughPlayersData) => void;

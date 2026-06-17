@@ -85,9 +85,15 @@ export function GameView({ roomSlug }: GameViewProps) {
           <CardHeader>
             <CardTitle>Wachtkamer</CardTitle>
             <CardDescription>
-              {state.isCreator
-                ? 'Jij bent de host. Start zodra iedereen er is.'
-                : 'Wacht tot de host de race start.'}
+              {state.phase === 'countdown'
+                ? 'Volgende ronde start automatisch...'
+                : state.isCreator
+                  ? state.hasCompletedRound
+                    ? 'Wacht op de automatische herstart van de volgende ronde.'
+                    : 'Jij bent de host. Start zodra iedereen er is.'
+                  : state.hasCompletedRound
+                    ? 'De volgende ronde start automatisch.'
+                    : 'Wacht tot de host de race start.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -111,7 +117,7 @@ export function GameView({ roomSlug }: GameViewProps) {
               ))}
             </ul>
 
-            {state.isCreator && !state.countdownStarted && (
+            {state.isCreator && !state.countdownStarted && !state.hasCompletedRound && (
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>

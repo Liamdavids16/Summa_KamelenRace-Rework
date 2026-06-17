@@ -19,6 +19,8 @@ export interface RoomSettings {
   maxPlayers: number;
   questionsPerRound: number;
   countdownSeconds: number;
+  autoKickAfterRound: boolean;
+  autoStartDelaySeconds: number;
 }
 
 export interface Player {
@@ -38,6 +40,7 @@ export interface Room {
   status: RoomStatus;
   countdown: number;
   timerId: ReturnType<typeof setInterval> | null;
+  roundEndTimerId: ReturnType<typeof setTimeout> | null;
   creatorId: string;
   countdownStarted: boolean;
   settings: RoomSettings;
@@ -86,6 +89,7 @@ export interface LobbyUpdateData {
 export interface BackToLobbyData {
   tijd: number;
   creatorId: string;
+  countdownStarted?: boolean;
 }
 
 export interface NotEnoughPlayersData {

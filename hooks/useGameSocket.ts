@@ -34,6 +34,8 @@ interface GameState {
   settings: GlobalSettings;
   minPlayers: number;
   maxPlayers: number;
+  hasCompletedRound: boolean;
+  autoStartDelaySeconds: number;
   error: string | null;
 }
 
@@ -51,7 +53,7 @@ type GameAction =
   | { type: 'LockQuestion' }
   | { type: 'UpdateGame'; players: Record<string, Player> }
   | { type: 'Winner'; name: string }
-  | { type: 'BackToLobby'; tijd: number; creatorId: string | null; mySocketId: string | null }
+  | { type: 'BackToLobby'; tijd: number; creatorId: string | null; mySocketId: string | null; countdownStarted: boolean }
   | { type: 'SetCreator'; isCreator: boolean }
   | { type: 'SetError'; error: string | null };
 
@@ -73,6 +75,8 @@ const initialState: GameState = {
   settings: { theme: 'desert', minPlayers: 4, maxPlayers: 8, questionsPerRound: 10 },
   minPlayers: 4,
   maxPlayers: 8,
+  hasCompletedRound: false,
+  autoStartDelaySeconds: 10,
   error: null,
 };
 
@@ -110,6 +114,7 @@ function reducer(state: GameState, action: GameAction): GameState {
           maxPlayers: roomSettings.maxPlayers,
           questionsPerRound: roomSettings.questionsPerRound,
         },
+        autoStartDelaySeconds: roomSettings.autoStartDelaySeconds,
       };
     }
     case 'LobbyUpdate':
@@ -131,6 +136,7 @@ function reducer(state: GameState, action: GameAction): GameState {
         questionLocked: false,
         selectedAnswer: null,
         showAnswerFeedback: false,
+        hasCompletedRound: true,
       };
     case 'NewQuestion':
       return {
@@ -167,14 +173,14 @@ function reducer(state: GameState, action: GameAction): GameState {
     case 'BackToLobby':
       return {
         ...state,
-        phase: 'waiting',
+        phase: action.countdownStarted ? 'countdown' : 'waiting',
         winnerName: null,
         question: null,
         selectedAnswer: null,
         showAnswerFeedback: false,
         error: null,
         countdown: action.tijd,
-        countdownStarted: false,
+        countdownStarted: action.countdownStarted,
         isCreator: action.creatorId ? action.mySocketId === action.creatorId : state.isCreator,
       };
     case 'SetCreator':
@@ -258,6 +264,11 @@ export function useGameSocket(roomSlug: string) {
     socket.on('newQuestion', (q) => dispatch({ type: 'NewQuestion', question: q }));
     socket.on('updateGame', (players) => dispatch({ type: 'UpdateGame', players }));
     socket.on('winner', (name) => dispatch({ type: 'Winner', name }));
+    socket.on('kickedAfterRound', () => {
+      toast.message('Ronde afgelopen — je bent terug in de lobby');
+      clearJoinSession();
+      router.push('/');
+    });
     socket.on('youAreNowCreator', () => {
       dispatch({ type: 'SetCreator', isCreator: true });
       toast.message('Je bent nu de host');
@@ -273,11 +284,16 @@ export function useGameSocket(roomSlug: string) {
           : typeof data === 'number'
             ? data
             : 10;
+      const countdownStarted =
+        data && typeof data === 'object' && 'countdownStarted' in data
+          ? Boolean(data.countdownStarted)
+          : false;
       dispatch({
         type: 'BackToLobby',
         tijd,
         creatorId,
         mySocketId: mySocketIdRef.current,
+        countdownStarted,
       });
     });
     socket.on('errorMessage', (msg) => {
