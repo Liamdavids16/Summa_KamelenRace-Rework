@@ -265,7 +265,7 @@ export function useGameSocket(roomSlug: string) {
     socket.on('updateGame', (players) => dispatch({ type: 'UpdateGame', players }));
     socket.on('winner', (name) => dispatch({ type: 'Winner', name }));
     socket.on('kickedAfterRound', () => {
-      toast.message('Ronde afgelopen — je bent terug in de lobby');
+      toast.message('Ronde afgelopen. Je bent terug naar de lobby geplaats.');
       clearJoinSession();
       router.push('/');
     });
