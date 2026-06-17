@@ -1,6 +1,6 @@
 {
-  "theme": "ocean",
+  "theme": "grassland",
   "minPlayers": 4,
   "maxPlayers": 8,
-  "questionsPerRound": 1
+  "questionsPerRound": 10
 }

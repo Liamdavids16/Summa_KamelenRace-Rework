@@ -194,7 +194,7 @@ export function AdminDashboard() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent variant="borderless">
                     {themeOptions.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.label}
