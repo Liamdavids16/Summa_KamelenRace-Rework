@@ -2,7 +2,13 @@ import type { GlobalSettings, Leaderboard, Room } from '@/types/game';
 import { loadLeaderboard } from '@/lib/leaderboard';
 import { loadSettings } from '@/lib/settings';
 
-export const AdminPasswords = ['awooDestiny23@!', 'Summa_Desi', 'Lynxies'];
+function LoadAdminPasswords(): string[] {
+  const raw = process.env.ADMIN_PASSWORDS;
+  if (!raw?.trim()) return [];
+  return raw.split(',').map((password) => password.trim()).filter(Boolean);
+}
+
+export const AdminPasswords = LoadAdminPasswords();
 
 const globalStore = globalThis as typeof globalThis & {
   __kamelenRooms?: Record<string, Room>;
